@@ -1,0 +1,43 @@
+{
+  "profiles": [
+    {
+      "id": "will-owner",
+      "name": "Will's Personal Space",
+      "createdAt": "2026-08-08T00:00:00.000Z",
+      "lastActive": "2026-08-08T00:00:00.000Z",
+      "preferences": {
+        "autoReadback": false,
+        "speechRate": 1,
+        "speechPitch": 1,
+        "subtleOperatorView": false,
+        "voiceName": ""
+      }
+    }
+  ],
+  "memories": [
+    {
+      "id": "mem-will-identity",
+      "profileId": "will-owner",
+      "fact": "Will is the primary system owner, designer, and partner for Laura AI.",
+      "category": "PERSONAL",
+      "source": "MANUAL_ENTRY",
+      "confidence": 100,
+      "createdAt": "2026-08-08T00:00:00.000Z",
+      "updatedAt": "2026-08-08T00:00:00.000Z",
+      "verifiedByOwner": true
+    },
+    {
+      "id": "mem-will-priority",
+      "profileId": "will-owner",
+      "fact": "Will prefers Laura AI to prioritize direct clarity, truth over confidence, and natural voice/speech interaction.",
+      "category": "PREFERENCE",
+      "source": "MANUAL_ENTRY",
+      "confidence": 98,
+      "createdAt": "2026-08-08T00:00:00.000Z",
+      "updatedAt": "2026-08-08T00:00:00.000Z",
+      "verifiedByOwner": true
+    }
+  ],
+  "chatHistories": [],
+  "version": 1
+}
