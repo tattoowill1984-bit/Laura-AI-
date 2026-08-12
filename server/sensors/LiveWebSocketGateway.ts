@@ -42,6 +42,7 @@ export class LiveWebSocketGateway {
 
   public processIncomingSensorPayload(payload: any, replyCallback?: (data: any) => void) {
     const { type, frameBase64, frame, visualData, audioData, timestamp, source, temporal_anchor, temporalAnchor } = payload || {};
+    const effectiveFrame = frameBase64 || frame;
 
     const activeTemporalAnchor = temporal_anchor || temporalAnchor || {
       timestamp: timestamp || new Date().toISOString(),
@@ -72,8 +73,6 @@ export class LiveWebSocketGateway {
     } else if (payload.message) {
       rawContent = payload.message;
     }
-
-    const effectiveFrame = frameBase64 || frame;
 
     // 1. Ingest into PerceptionBus -> Envelopes created & governed with Temporal Anchor
     const currentPosture = this.kernel.getPosture();

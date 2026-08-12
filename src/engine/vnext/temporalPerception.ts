@@ -14,6 +14,11 @@ export class TemporalPerceptionLayer {
   private windowsMap: Map<string, TemporalPerceptionWindow> = new Map();
   private activeWindowId: string | null = null;
   private defaultWindowTimeoutMs: number = 30000; // 30s expiration
+  
+  // Dynamic Habituation, Excitation/Inhibition, and Causal Gating
+  private habituationMap: Map<string, { count: number; lastSeen: number; inhibition: number }> = new Map();
+  private causalGatingActive: boolean = false;
+  private causalGatingReason: string = '';
 
   constructor() {
     this.seedDefaultWindows();
@@ -296,6 +301,11 @@ export class TemporalPerceptionLayer {
   public evaluateAttentionEscalation(obs: ObservationEnvelopeVNext, surpriseDelta: number): AttentionLevel {
     const text = obs.rawContent.toLowerCase();
 
+    // 0. Static / Redundant Scene Check FIRST (Low attention & compression)
+    if (obs.temporalAnchor?.is_static_scene || (surpriseDelta < 0.05 && obs.uncertainty.score < 20)) {
+      return 'LOW';
+    }
+
     // 1. SAFETY_RELEVANT
     if (
       text.includes('safety') ||
@@ -305,6 +315,8 @@ export class TemporalPerceptionLayer {
       text.includes('critical') ||
       text.includes('security')
     ) {
+      this.causalGatingActive = true;
+      this.causalGatingReason = `Safety-relevant term detected in observation: "${text.slice(0, 40)}"`;
       return 'SAFETY_RELEVANT';
     }
 
@@ -314,16 +326,52 @@ export class TemporalPerceptionLayer {
     }
 
     // 3. HIGH
-    if (obs.modality === 'CAMERA' || obs.modality === 'MICROPHONE' || obs.attachmentsCount! > 0) {
+    if (obs.modality === 'CAMERA' || obs.modality === 'MICROPHONE' || (obs.attachmentsCount && obs.attachmentsCount > 0)) {
       return 'HIGH';
     }
 
-    // 4. LOW (Redundant frames / static input)
-    if (obs.temporalAnchor?.is_static_scene || (text.length < 10 && obs.confidence > 90)) {
+    // 4. LOW (Redundant / short text)
+    if (text.length < 10 && obs.confidence > 90) {
       return 'LOW';
     }
 
     return 'MODERATE';
+  }
+
+  /**
+   * Updates habituation tracking for a pattern hash.
+   */
+  public updateHabituation(patternHash: string, predictionError: number): { excitation: number; inhibition: number; habituationIndex: number } {
+    const now = Date.now();
+    const existing = this.habituationMap.get(patternHash) || { count: 0, lastSeen: now, inhibition: 0.0 };
+
+    if (predictionError < 0.20) {
+      existing.count += 1;
+      existing.inhibition = Math.min(0.98, existing.inhibition + 0.15);
+    } else {
+      // Re-excitation on prediction error / deviation
+      existing.count = Math.max(0, existing.count - 2);
+      existing.inhibition = Math.max(0.0, existing.inhibition - 0.35);
+    }
+
+    existing.lastSeen = now;
+    this.habituationMap.set(patternHash, existing);
+
+    const excitation = Math.min(1.0, Math.max(0.0, predictionError * (1.0 - existing.inhibition)));
+    return {
+      excitation,
+      inhibition: existing.inhibition,
+      habituationIndex: existing.count,
+    };
+  }
+
+  public setCausalGating(active: boolean, reason: string = '') {
+    this.causalGatingActive = active;
+    this.causalGatingReason = reason;
+  }
+
+  public isCausalGatingActive(): { active: boolean; reason: string } {
+    return { active: this.causalGatingActive, reason: this.causalGatingReason };
   }
 
   private derivePreliminaryInterpretation(obs: ObservationEnvelopeVNext): string {

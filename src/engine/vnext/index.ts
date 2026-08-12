@@ -23,6 +23,10 @@ import {
   PredictionErrorRecord,
   TemporalObservation,
   TemporalPerceptionWindow,
+  EventAssessment,
+  RecommendedDisposition,
+  ReasoningPacket,
+  EpistemicStatus,
 } from './types';
 
 export class GabbyVNextEngine {
@@ -78,6 +82,85 @@ export class GabbyVNextEngine {
       this.worldModel
     );
 
+    // 2.8. Habituation & EventAssessment Matrix Computation (Luna Engineering Update)
+    const patternHash = `pattern_${observation.modality}_${observation.rawContent.slice(0, 30)}`;
+    const habituation = this.temporalPerception.updateHabituation(patternHash, errorRecord.predictionErrorDelta);
+    const expectationConfidence = 0.85; // C_exp
+    const novelty = parseFloat(
+      (Math.min(1.0, errorRecord.predictionErrorDelta / (1.0 + habituation.inhibition)) * expectationConfidence).toFixed(3)
+    );
+
+    const relevance = this.goalEngine.getActiveGoals().length > 0 ? 0.85 : 0.45;
+    const uncertaintyScore = observation.uncertainty.score;
+    const contradictionScore = errorRecord.errorSignalType === 'PARADIGM_SHIFT' ? 0.85 : 0.15;
+    const volatilityScore = temporalObs.attentionLevel === 'HIGH_UNCERTAINTY' ? 0.75 : 0.20;
+    const riskScore = temporalObs.safetyRelevant ? 0.95 : 0.10;
+
+    const escalationPressure = parseFloat(
+      Math.min(
+        1.0,
+        novelty * 0.25 +
+          relevance * 0.20 +
+          (uncertaintyScore / 100.0) * 0.20 +
+          contradictionScore * 0.15 +
+          riskScore * 0.20
+      ).toFixed(3)
+    );
+
+    const decisionCost = parseFloat((escalationPressure * 0.40 + (uncertaintyScore / 100.0) * 0.30 + 0.10).toFixed(3));
+
+    let recommendedDisposition: RecommendedDisposition = 'SUPPRESS';
+    if (riskScore >= 0.80 || posture === 'STONEWALL') {
+      recommendedDisposition = 'ESCALATE';
+    } else if (escalationPressure >= 0.65) {
+      recommendedDisposition = 'REASON';
+    } else if (uncertaintyScore >= 75 || errorRecord.errorSignalType === 'PARADIGM_SHIFT') {
+      recommendedDisposition = 'DEFER';
+    } else if (escalationPressure >= 0.35) {
+      recommendedDisposition = 'INSPECT';
+    } else if (escalationPressure >= 0.15) {
+      recommendedDisposition = 'MONITOR';
+    }
+
+    const epistemicState: EpistemicStatus =
+      uncertaintyScore >= 70 ? 'OPEN_UNKNOWN' : errorRecord.errorSignalType === 'MATCH' ? 'KNOWN_FACT' : 'HYPOTHESIS';
+
+    const eventAssessment: EventAssessment = {
+      id: `assess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      modality: observation.modality,
+      novelty,
+      expectation: `Contextual expectation for ${observation.modality} input under ${posture} posture`,
+      expectationConfidence,
+      excitation: parseFloat(habituation.excitation.toFixed(3)),
+      inhibition: parseFloat(habituation.inhibition.toFixed(3)),
+      persistenceMs: observation.temporalAnchor?.delta_t_ms || 1000,
+      recurrenceCount: habituation.habituationIndex,
+      predictionError: errorRecord.predictionErrorDelta,
+      relevance,
+      uncertainty: uncertaintyScore,
+      contradiction: contradictionScore,
+      volatility: volatilityScore,
+      risk: riskScore,
+      decisionCost,
+      escalationPressure,
+      epistemicState,
+      posture,
+      provenance: observation.provenance,
+      observationHash: `sha256_${Date.now()}`,
+      recommendedDisposition,
+    };
+
+    const reasoningPacket: ReasoningPacket = {
+      assessment: eventAssessment,
+      envelope: observation,
+      temporalObservation: temporalObs,
+      worldGraphSummary: `Nodes: ${this.worldModel.getGraph().nodes.length}, Edges: ${this.worldModel.getGraph().edges.length}`,
+      salientFacts: this.worldModel.getGraph().nodes.slice(0, 5).map((n) => n.label),
+      systemPosture: posture,
+      permittedCapabilities: ['memory:read', 'tool:execute'],
+    };
+
     // 3. World Model: Assimilate entities & promote knowledge
     this.worldModel.assimilateEntities(observation.extractedEntities);
     this.learningLayer.promoteKnowledge(this.worldModel.getGraph().nodes);
@@ -119,6 +202,8 @@ export class GabbyVNextEngine {
       temporalObs,
       temporalWindow: window,
       humanCommunicationString,
+      eventAssessment,
+      reasoningPacket,
       worldGraph: this.worldModel.getGraph(),
       worldModelTensors: this.worldModel.getWorldModelTensors(),
       predictionErrorRecord: errorRecord,

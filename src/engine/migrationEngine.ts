@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { SentinelMutationKernel } from './kernel';
+import { EvidenceSourceTier } from './gabbySubstrate';
 
 export interface RuntimeMetrics {
   nodeVersion: string;
@@ -269,10 +270,9 @@ export class GovernedMigrationEngine {
       // Record into Gabby Cognitive Substrate Merkle Evidence DAG
       const substrate = this.kernel.getGabbySubstrate();
       substrate.ingestObservation(
-        `MIGRATION_EXECUTION_VERIFIED:${proposalId}`,
-        `Governed migration executed successfully with verified health probe (${responseTimeMs}ms). SHA-256 Proof: ${this.currentProposal.sha256ProofHash}`,
+        `MIGRATION_EXECUTION_VERIFIED:${proposalId}: Governed migration executed successfully with verified health probe (${responseTimeMs}ms). SHA-256 Proof: ${this.currentProposal.sha256ProofHash}`,
         0.98,
-        ['MIGRATION_ENGINE', 'HUMAN_AUTHORIZATION_PROOF']
+        EvidenceSourceTier.EXPERT_VERIFIED
       );
 
       return this.currentProposal;

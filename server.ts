@@ -9,7 +9,7 @@ import { SentinelMutationKernel } from './src/engine/kernel';
 import { AutonomousHealthLoop } from './src/engine/autonomousHealthLoop';
 import { RedTeamSuiteRunner } from './src/engine/redTeamSuite';
 import { ViabilitySoakTestRunner } from './src/engine/viabilitySoakTest';
-import { GabbyCognitiveSubstrate, FormalExplanationCompiler, TemporalMemoryDecayEngine, AbstractionLevel } from './src/engine/gabbySubstrate';
+import { GabbyCognitiveSubstrate, FormalExplanationCompiler, TemporalMemoryDecayEngine, AbstractionLevel, EvidenceSourceTier } from './src/engine/gabbySubstrate';
 import { persistentStorage } from './src/engine/persistentStorage';
 import { gabbyVNextEngine } from './src/engine/vnext';
 import { runMultimodalPerceptionTestSuite } from './src/engine/vnext/__tests__/multimodalPerception.test';
@@ -1381,13 +1381,12 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       
       // Store observation in Merkle Evidence DAG
       const substrate = kernel.getGabbySubstrate();
-      const node = substrate.ingestObservation(
-        `WEB_OBSERVATION:${observation.observationId}`,
-        JSON.stringify(observation),
+      const nodeRes = substrate.ingestObservation(
+        `WEB_OBSERVATION:${observation.observationId}: ${JSON.stringify(observation)}`,
         observation.provenance.authorityRating,
-        ['WEB_RETRIEVAL_ADAPTER', observation.provenance.sourceDomain]
+        EvidenceSourceTier.ANONYMOUS_WEB
       );
-      observation.merkleNodeId = node.id;
+      observation.merkleNodeId = nodeRes.node.merkleHash;
 
       res.json({
         success: true,

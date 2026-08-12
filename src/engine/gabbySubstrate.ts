@@ -19,6 +19,7 @@ export enum PermissionNamespace {
   WRITE_MEMORY = 'memory:write',
   EXECUTE_TOOL = 'tool:execute',
   NETWORK_OUTBOUND = 'net:outbound',
+  EMERGENCY_RECOVERY = 'sys:emergency_recovery',
 }
 
 export enum EvidenceSourceTier {
@@ -893,6 +894,14 @@ export class GabbyCognitiveSubstrate {
       schemaVersion: 'v2.0',
     };
     this.ledger.append(claimArt);
+  }
+
+  public ingestObservation(
+    content: string,
+    authorityRating: number = 0.9,
+    sourceTier: EvidenceSourceTier = EvidenceSourceTier.EXPERT_VERIFIED
+  ) {
+    return this.recordObservationAndVerify(content, authorityRating, sourceTier);
   }
 
   public recordObservationAndVerify(

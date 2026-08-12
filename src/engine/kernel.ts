@@ -487,6 +487,10 @@ export class SentinelMutationKernel {
     return this.subsystemRegistry.getSubsystems();
   }
 
+  public touchSubsystem(subsystemId: string, details?: string): void {
+    this.subsystemRegistry.touchSubsystem(subsystemId, details);
+  }
+
   public setMasterPassphrase(newPassphrase: string) {
     if (newPassphrase && newPassphrase.trim().length >= 3) {
       this.masterPassphrase = newPassphrase.trim();

@@ -35,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMasterKeyModal,
   activeProfile,
   onOpenProfileModal,
+  onOpenMigrationModal,
 }) => {
   const getPostureBadge = () => {
     switch (posture) {

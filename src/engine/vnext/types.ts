@@ -379,3 +379,72 @@ export interface ConversationMetrics {
   interruptionDetected: boolean;
   contextSwitchFrequency: number;
 }
+
+export type RecommendedDisposition =
+  | 'SUPPRESS'
+  | 'MONITOR'
+  | 'INSPECT'
+  | 'REASON'
+  | 'ESCALATE'
+  | 'DEFER';
+
+export interface EventAssessment {
+  id: string;
+  timestamp: string;
+  modality: PerceptionModality;
+  
+  // Novelty & Expectation
+  novelty: number;                  // 0.0 - 1.0
+  expectation: string;              // Contextual pattern summary
+  expectationConfidence: number;    // 0.0 - 1.0 (C_exp)
+  
+  // Competing Dynamics
+  excitation: number;               // 0.0 - 1.0
+  inhibition: number;               // 0.0 - 1.0
+  
+  // Persistence & Recurrence
+  persistenceMs: number;
+  recurrenceCount: number;
+  predictionError: number;          // 0.0 - 1.0
+  
+  // Multi-Factor Risk Matrix
+  relevance: number;                // 0.0 - 1.0
+  uncertainty: number;              // 0 - 100
+  contradiction: number;            // 0.0 - 1.0
+  volatility: number;               // 0.0 - 1.0
+  risk: number;                     // 0.0 - 1.0
+  
+  // Bounded Decision Cost
+  decisionCost: number;             // J_decision metric (0.0 - 1.0)
+  
+  // Computed Escalation Pressure
+  escalationPressure: number;       // 0.0 - 1.0
+  
+  // Epistemic State & Posture
+  epistemicState: EpistemicStatus;
+  posture: string;
+  
+  // Provenance & Security
+  provenance: string;
+  observationHash: string;
+  
+  // Action Routing
+  recommendedDisposition: RecommendedDisposition;
+}
+
+export interface ContextualExpectation {
+  patternSummary: string;
+  expectationConfidence: number; // 0.0 - 1.0
+  lastUpdated: string;
+  sampleCount: number;
+}
+
+export interface ReasoningPacket {
+  assessment: EventAssessment;
+  envelope: ObservationEnvelopeVNext;
+  temporalObservation?: TemporalObservation;
+  worldGraphSummary: string;
+  salientFacts: string[];
+  systemPosture: string;
+  permittedCapabilities: string[];
+}
