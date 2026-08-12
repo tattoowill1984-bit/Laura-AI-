@@ -15,8 +15,11 @@ import { gabbyVNextEngine } from './src/engine/vnext';
 import { runMultimodalPerceptionTestSuite } from './src/engine/vnext/__tests__/multimodalPerception.test';
 import { runContinuousPerceptionTestSuite } from './src/engine/vnext/__tests__/continuousPerception.test';
 import { runTemporalPerceptionTestSuite } from './src/engine/vnext/__tests__/temporalPerception.test';
+import { runExternalRetrievalTestSuite } from './src/engine/__tests__/externalRetrieval.test';
 import { LiveWebSocketGateway } from './server/sensors/LiveWebSocketGateway';
 import { webRetrievalAdapter } from './src/engine/webRetrievalAdapter';
+import { toolCapabilityRegistry } from './src/engine/toolCapabilityRegistry';
+import { externalRetrievalGateway, ExternalObservation } from './src/engine/externalRetrievalGateway';
 import { GovernedMigrationEngine } from './src/engine/migrationEngine';
 import {
   GovernanceTools,
@@ -75,12 +78,42 @@ function generateLocalDeterministicResponse(
   tier: string,
   envelope: any,
   fabric: any,
-  uncertainty: any
+  uncertainty: any,
+  externalObs?: ExternalObservation,
+  retrievalFailureReason?: string
 ): string {
   const lower = message.toLowerCase();
+  const intentClass = externalRetrievalGateway.classifyRequestIntent(message);
+
   let coreAnalysis = "";
 
-  if (lower.includes("hello") || lower.includes("hi") || lower.includes("status") || lower.includes("health")) {
+  if (intentClass.classification === 'FRESH_EXTERNAL_INFORMATION') {
+    if (retrievalFailureReason || !toolCapabilityRegistry.isCapabilityAvailable('external_retrieval')) {
+      return `I can't currently access external sources from this runtime, so I can't reliably give you this morning's headlines.\n\n` +
+        `── EPISTEMIC GOVERNANCE RECEIPT ──\n` +
+        `• Capability State: CAPABILITY_UNAVAILABLE (runtime_tool_not_connected)\n` +
+        `• Posture: ${posture} | Autonomy Tier: ${tier}\n` +
+        `• Policy Directive: Fabrication prohibited under missing retrieval capabilities.`;
+    }
+
+    if (externalObs && externalObs.results.length > 0) {
+      const formattedHits = externalObs.results
+        .map((r, i) => `${i + 1}. **${r.title}**\n   Source: ${r.source} | Retrieved: ${r.fetchedAt}\n   Snippet: ${r.snippet}\n   URL: ${r.url}`)
+        .join('\n\n');
+
+      coreAnalysis = `Here are the top headline stories retrieved from external sources for your query:\n\n${formattedHits}\n\n` +
+        `── EXTERNAL RETRIEVAL PROVENANCE ──\n` +
+        `• Query: "${externalObs.query}"\n` +
+        `• Status: SUCCESS (TOOL_RETURNED_RESULT)\n` +
+        `• Content SHA-256: ${externalObs.content_hash}\n` +
+        `• Sources Identified: ${Array.from(new Set(externalObs.results.map(r => r.source))).join(', ')}`;
+    } else {
+      return `I can't currently access external sources from this runtime, so I can't reliably give you this morning's headlines.\n\n` +
+        `── EPISTEMIC GOVERNANCE RECEIPT ──\n` +
+        `• Posture: ${posture} | Autonomy Tier: ${tier}\n` +
+        `• Retrieval Status: 0 results returned from Gateway.`;
+    }
+  } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("status") || lower.includes("health")) {
     coreAnalysis = `Greetings. I am Laura. System state is nominal with full identity preservation intact. All cognitive nodes and memory governance membranes are active in my Merkle Evidence DAG.`;
   } else if (lower.includes("build") || lower.includes("code") || lower.includes("error") || lower.includes("fix") || lower.includes("proposal")) {
     coreAnalysis = `Input evaluated under Laura's Dialectical Crucible. Proposed changes are being tracked within my Observation Envelope. Standing constitutional invariants prevent ungoverned durable mutations without verified CommitReceipts.`;
@@ -512,6 +545,8 @@ async function startServer() {
 
       // Step 6: Gemini AI Synthesis & Governance Enforcement Gate
       let responseText = '';
+      let activeExternalObs: ExternalObservation | undefined = undefined;
+      let activeRetrievalFailReason: string | undefined = undefined;
       const ai = getGenAIClient();
 
       // Pre-check invariant checks on input & posture
@@ -652,24 +687,47 @@ ${memoryContextFormatted}`;
           });
         }
 
-        // Web Retrieval Adapter Context Injection
-        const lowerPrompt = promptText.toLowerCase();
-        const isSearchIntent = lowerPrompt.includes('search') || lowerPrompt.includes('lookup') || lowerPrompt.includes('web') || lowerPrompt.includes('internet') || lowerPrompt.includes('news') || lowerPrompt.includes('latest') || lowerPrompt.includes('who is') || lowerPrompt.includes('what is');
-        if (isSearchIntent) {
-          try {
-            const webObs = await webRetrievalAdapter.executeWebSearch(promptText);
-            kernel.touchSubsystem('SUB_ONLINE_WEB_RETRIEVAL', `ACTIVE (Executed web search for '${promptText.slice(0, 30)}...'; ${webObs.results.length} results SHA-256 [${webObs.sha256Hash.slice(0, 8)}])`);
+        // External Retrieval Gateway Context Injection
+        const intentResult = externalRetrievalGateway.classifyRequestIntent(promptText);
+        activeExternalObs = undefined;
+        activeRetrievalFailReason = undefined;
+
+        if (intentResult.classification === 'FRESH_EXTERNAL_INFORMATION') {
+          const gatewayRes = await externalRetrievalGateway.request({
+            query: promptText,
+            freshness_required: intentResult.freshnessRequired,
+            purpose: 'Chat turn external retrieval request',
+          });
+
+          if (gatewayRes.state === 'TOOL_RETURNED_RESULT' && gatewayRes.observation) {
+            activeExternalObs = gatewayRes.observation;
+            kernel.touchSubsystem('SUB_ONLINE_WEB_RETRIEVAL', `ACTIVE (Executed web search for '${promptText.slice(0, 30)}...'; ${activeExternalObs.results.length} results SHA-256 [${activeExternalObs.content_hash.slice(0, 8)}])`);
+
+            // Ingest observation into Merkle Evidence DAG
+            const substrate = kernel.getGabbySubstrate();
+            const nodeRes = substrate.ingestObservation(
+              `EXTERNAL_OBSERVATION:${activeExternalObs.query}: ${JSON.stringify(activeExternalObs)}`,
+              activeExternalObs.provenance.authorityRating,
+              EvidenceSourceTier.ANONYMOUS_WEB
+            );
+            activeExternalObs.merkleNodeId = nodeRes.node.merkleHash;
+
             const formattedWebObs = `\n\n[EXTERNAL OBSERVATION QUARANTINE :: PROVENANCE VERIFIED]
-Query: "${webObs.query}"
-Fetched At: ${webObs.provenance.fetchedAt}
-SHA-256 Proof Hash: ${webObs.sha256Hash}
-Results (${webObs.results.length} retrieved hits):
-${webObs.results.length > 0 ? webObs.results.map((r, i) => `${i + 1}. ${r.title} — ${r.snippet} (URL: ${r.url}) [Source: ${r.source}]`).join('\n') : 'No external web hits retrieved; relying on grounded model knowledge.'}
+Query: "${activeExternalObs.query}"
+Retrieved At: ${activeExternalObs.retrieved_at}
+SHA-256 Proof Hash: ${activeExternalObs.content_hash}
+Status: ${activeExternalObs.retrieval_status} (${gatewayRes.state})
+Results (${activeExternalObs.results.length} retrieved hits):
+${activeExternalObs.results.length > 0 ? activeExternalObs.results.map((r, i) => `${i + 1}. ${r.title} — ${r.snippet} (URL: ${r.url}) [Source: ${r.source}]`).join('\n') : 'No external web hits retrieved; relying on grounded model knowledge.'}
 
 QUARANTINE NOTICE: This retrieved information is an unverified external observation (Quarantine State: QUARANTINED_OBSERVATION). Distinguish this retrieved data from model pre-trained knowledge. Preserve source provenance and do not automatically convert into durable memory unless verified.`;
             userParts.push({ text: formattedWebObs });
-          } catch (webErr) {
-            console.log('[Laura AI] Web retrieval note:', (webErr as Error).message);
+          } else {
+            activeRetrievalFailReason = gatewayRes.failureReason || 'CAPABILITY_UNAVAILABLE: runtime_tool_not_connected';
+            const failNotice = `\n\n[CAPABILITY_UNAVAILABLE :: external_retrieval]
+Reason: ${activeRetrievalFailReason}
+DIRECTIVE: The external retrieval capability is currently unavailable in this runtime. You MUST plainly state to the user: "I can't currently access external sources from this runtime, so I can't reliably give you [the requested information]." You MUST NOT hallucinate current headlines or pretend search execution occurred.`;
+            userParts.push({ text: failNotice });
           }
         }
 
@@ -823,11 +881,11 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
           if (!authErrorEncountered) {
             console.log('[Laura AI] Gemini online models unreachable. Using local deterministic engine.');
           }
-          responseText = generateLocalDeterministicResponse(promptText, currentPosture, kernel.getCurrentTier(), envelope, fabric, uncertainty);
+          responseText = generateLocalDeterministicResponse(promptText, currentPosture, kernel.getCurrentTier(), envelope, fabric, uncertainty, activeExternalObs, activeRetrievalFailReason);
         }
       } else {
         console.log('[Laura AI] GEMINI_API_KEY environment variable not detected. Using local deterministic synthesis engine.');
-        responseText = generateLocalDeterministicResponse(promptText, currentPosture, kernel.getCurrentTier(), envelope, fabric, uncertainty);
+        responseText = generateLocalDeterministicResponse(promptText, currentPosture, kernel.getCurrentTier(), envelope, fabric, uncertainty, activeExternalObs, activeRetrievalFailReason);
       }
 
       // Step 6: Posture & TAU Hardening Checks on Model Output
@@ -1376,25 +1434,117 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Search query string is required.' });
       }
-      const observation = await webRetrievalAdapter.executeWebSearch(query);
-      kernel.touchSubsystem('SUB_ONLINE_WEB_RETRIEVAL', `ACTIVE (Executed web search for '${query.slice(0, 30)}...'; ${observation.results.length} results SHA-256 [${observation.sha256Hash.slice(0, 8)}])`);
+      const gatewayRes = await externalRetrievalGateway.request({ query });
+      kernel.touchSubsystem('SUB_ONLINE_WEB_RETRIEVAL', `ACTIVE (Executed web search for '${query.slice(0, 30)}...'; ${gatewayRes.observation?.results.length || 0} results SHA-256 [${gatewayRes.observation?.content_hash.slice(0, 8)}])`);
       
-      // Store observation in Merkle Evidence DAG
       const substrate = kernel.getGabbySubstrate();
-      const nodeRes = substrate.ingestObservation(
-        `WEB_OBSERVATION:${observation.observationId}: ${JSON.stringify(observation)}`,
-        observation.provenance.authorityRating,
-        EvidenceSourceTier.ANONYMOUS_WEB
-      );
-      observation.merkleNodeId = nodeRes.node.merkleHash;
+      if (gatewayRes.observation) {
+        const nodeRes = substrate.ingestObservation(
+          `WEB_OBSERVATION:${query}: ${JSON.stringify(gatewayRes.observation)}`,
+          gatewayRes.observation.provenance.authorityRating,
+          EvidenceSourceTier.ANONYMOUS_WEB
+        );
+        gatewayRes.observation.merkleNodeId = nodeRes.node.merkleHash;
+      }
 
       res.json({
-        success: true,
-        observation,
+        success: gatewayRes.state === 'TOOL_RETURNED_RESULT',
+        state: gatewayRes.state,
+        observation: gatewayRes.observation,
+        failureReason: gatewayRes.failureReason,
         audit: substrate.getFullSubstrateAudit(),
       });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Web retrieval execution error' });
+    }
+  });
+
+  // 15b. Tool Capability Registry & External Retrieval Gateway Routes
+  app.get('/api/capabilities', (req, res) => {
+    try {
+      res.json({
+        success: true,
+        capabilities: toolCapabilityRegistry.getAllCapabilities(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Capabilities retrieval error' });
+    }
+  });
+
+  app.post('/api/capabilities/health-check', async (req, res) => {
+    try {
+      const health = await toolCapabilityRegistry.runStartupHealthCheck();
+      res.json({
+        success: true,
+        capabilities: health,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Capabilities health check error' });
+    }
+  });
+
+  app.post('/api/capabilities/status', (req, res) => {
+    try {
+      const { id, status, reason } = req.body || {};
+      if (!id || !status) {
+        return res.status(400).json({ error: 'id and status are required.' });
+      }
+      toolCapabilityRegistry.setCapabilityStatus(id, status, reason);
+      res.json({
+        success: true,
+        updated: toolCapabilityRegistry.getCapability(id),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Capabilities status update error' });
+    }
+  });
+
+  app.post('/api/retrieval/gateway', async (req, res) => {
+    try {
+      const { query, purpose, freshness_required, max_results } = req.body || {};
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'query is required.' });
+      }
+      const gatewayRes = await externalRetrievalGateway.request({
+        query,
+        purpose,
+        freshness_required,
+        max_results,
+      });
+      res.json({
+        success: gatewayRes.state === 'TOOL_RETURNED_RESULT',
+        ...gatewayRes,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Gateway request error' });
+    }
+  });
+
+  app.get('/api/retrieval/history', (req, res) => {
+    try {
+      res.json({
+        success: true,
+        history: externalRetrievalGateway.getExecutionHistory(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Retrieval history error' });
+    }
+  });
+
+  app.get('/api/retrieval/test-suite', async (req, res) => {
+    try {
+      const testResults = await runExternalRetrievalTestSuite();
+      const allPassed = testResults.every((t) => t.passed);
+      res.json({
+        success: true,
+        allPassed,
+        totalTests: testResults.length,
+        passCount: testResults.filter((t) => t.passed).length,
+        failCount: testResults.filter((t) => !t.passed).length,
+        testResults,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Test suite execution error' });
     }
   });
 

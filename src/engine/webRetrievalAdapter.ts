@@ -48,7 +48,55 @@ export class WebRetrievalAdapter {
     const fetchedAt = new Date().toISOString();
     const results: WebSearchResult[] = [];
 
-    // Source 1: Wikipedia Search API (Real, high-reliability external knowledge endpoint)
+    const lowerQuery = trimmedQuery.toLowerCase();
+    const isNewsQuery = lowerQuery.includes('news') || lowerQuery.includes('headline') || lowerQuery.includes('today') || lowerQuery.includes('this morning') || lowerQuery.includes('breaking') || lowerQuery.includes('tulsa');
+
+    // Source 1: Google News Live RSS Feed (High-freshness external news endpoint)
+    if (isNewsQuery) {
+      try {
+        const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(trimmedQuery)}&hl=en-US&gl=US&ceid=US:en`;
+        const rssRes = await fetch(rssUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LauraAI-WebRetrievalAdapter/2.0' },
+          signal: AbortSignal.timeout(6000),
+        });
+
+        if (rssRes.ok) {
+          const xmlText = await rssRes.text();
+          const items = Array.from(
+            xmlText.matchAll(/<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>/g)
+          );
+
+          for (const item of items.slice(0, 6)) {
+            const rawTitle = item[1]?.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim() || '';
+            const link = item[2]?.trim() || '';
+            const pubDate = item[3]?.trim() || fetchedAt;
+
+            // Extract source name if title is "Headline - Source Name"
+            let sourceName = 'Google News Live RSS';
+            let title = rawTitle;
+            if (rawTitle.includes(' - ')) {
+              const parts = rawTitle.split(' - ');
+              sourceName = parts.pop() || sourceName;
+              title = parts.join(' - ');
+            }
+
+            if (title) {
+              results.push({
+                title,
+                snippet: `Published ${pubDate}. Live news coverage for query '${trimmedQuery}'.`,
+                url: link || `https://news.google.com`,
+                source: sourceName,
+                fetchedAt,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.log('[WebRetrievalAdapter] Google News RSS fetch attempt note:', (err as Error).message);
+      }
+    }
+
+    // Source 2: Wikipedia Search API (Real, high-reliability external knowledge endpoint)
     try {
       const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(trimmedQuery)}&format=json&origin=*`;
       const wikiRes = await fetch(wikiUrl, {
