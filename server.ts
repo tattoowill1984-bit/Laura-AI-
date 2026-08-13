@@ -21,6 +21,10 @@ import { webRetrievalAdapter } from './src/engine/webRetrievalAdapter';
 import { toolCapabilityRegistry } from './src/engine/toolCapabilityRegistry';
 import { externalRetrievalGateway, ExternalObservation } from './src/engine/externalRetrievalGateway';
 import { GovernedMigrationEngine } from './src/engine/migrationEngine';
+import { GovernedExecutionKernel } from './src/engine/governedExecutionKernel';
+import { runGovernedExecutionTestSuite } from './src/engine/__tests__/governedExecution.test';
+import { GovernedLearningEngine } from './src/engine/governedLearningEngine';
+import { runGovernedLearningTestSuite } from './src/engine/__tests__/governedLearning.test';
 import {
   GovernanceTools,
   CORE_RUNTIME_SYSTEM_INSTRUCTION,
@@ -35,6 +39,8 @@ dotenv.config();
 // Initialize Anamnesis Sentinel Core & Gabby Substrate
 const kernel = new SentinelMutationKernel();
 const gabbySubstrate = new GabbyCognitiveSubstrate();
+const governedExecutionKernel = new GovernedExecutionKernel(gabbySubstrate);
+const governedLearningEngine = new GovernedLearningEngine(gabbySubstrate);
 const govTools = new GovernanceTools(kernel);
 const migrationEngine = GovernedMigrationEngine.getInstance(kernel);
 const healthLoop = new AutonomousHealthLoop(kernel);
@@ -1545,6 +1551,72 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Test suite execution error' });
+    }
+  });
+
+  // 15.5. Governed Execution Kernel & Execution Gate Endpoints
+  app.post('/api/governed-execution/proposal', async (req, res) => {
+    try {
+      const { proposal, trustedIdentityId, capabilityId } = req.body || {};
+      if (!proposal || !proposal.action || !proposal.target) {
+        return res.status(400).json({ error: 'Proposal with action and target is required.' });
+      }
+      const result = await governedExecutionKernel.processAndExecuteProposal(
+        proposal,
+        trustedIdentityId || 'will-owner',
+        capabilityId || 'memory'
+      );
+      res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Governed execution error' });
+    }
+  });
+
+  app.get('/api/governed-execution/test-suite', async (req, res) => {
+    try {
+      const testResults = await runGovernedExecutionTestSuite();
+      const allPassed = testResults.every((t) => t.passed);
+      res.json({
+        success: true,
+        allPassed,
+        totalTests: testResults.length,
+        passCount: testResults.filter((t) => t.passed).length,
+        failCount: testResults.filter((t) => !t.passed).length,
+        testResults,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Governed execution test suite error' });
+    }
+  });
+
+  // 15.6. Governed Learning & Memory Balance Endpoints
+  app.post('/api/governed-learning/propose', async (req, res) => {
+    try {
+      const proposal = req.body || {};
+      if (!proposal || !proposal.profileId || !proposal.factValue) {
+        return res.status(400).json({ error: 'Candidate memory proposal with profileId and factValue is required.' });
+      }
+      const decision = await governedLearningEngine.processGovernedLearning(proposal);
+      res.json({ success: true, decision });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Governed learning processing error' });
+    }
+  });
+
+  app.get('/api/governed-learning/test-suite', async (req, res) => {
+    try {
+      const testResults = await runGovernedLearningTestSuite();
+      const allPassed = testResults.every((t) => t.passed);
+      res.json({
+        success: true,
+        allPassed,
+        totalTests: testResults.length,
+        passCount: testResults.filter((t) => t.passed).length,
+        failCount: testResults.filter((t) => !t.passed).length,
+        testResults,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Governed learning test suite error' });
     }
   });
 

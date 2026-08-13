@@ -23,12 +23,18 @@ export interface LongTermMemoryItem {
   id: string;
   profileId: string;
   fact: string;
-  category: 'PERSONAL' | 'PREFERENCE' | 'GOAL' | 'CONTEXT' | 'INVARIANT';
-  source: 'USER_INPUT' | 'GABBY_INFERENCE' | 'MANUAL_ENTRY';
+  category: 'PERSONAL' | 'PREFERENCE' | 'GOAL' | 'CONTEXT' | 'INVARIANT' | 'SYSTEM_CONFIG';
+  source: 'USER_INPUT' | 'GABBY_INFERENCE' | 'MANUAL_ENTRY' | 'EXPERT_USER_STATEMENT';
   confidence: number; // 0-100
   createdAt: string;
   updatedAt: string;
   verifiedByOwner: boolean;
+  factKey?: string;
+  superseded?: boolean;
+  supersededBy?: string;
+  previousValue?: string;
+  supersededAt?: string;
+  merkleNodeHash?: string;
 }
 
 export interface StoredChatMessage {
@@ -212,6 +218,10 @@ export class PersistentStorage {
     return this.db.memories.filter((m) => m.profileId === profileId);
   }
 
+  public getActiveMemoriesForProfile(profileId: string): LongTermMemoryItem[] {
+    return this.db.memories.filter((m) => m.profileId === profileId && !m.superseded);
+  }
+
   public addMemory(
     profileId: string,
     fact: string,
@@ -234,6 +244,32 @@ export class PersistentStorage {
     this.db.memories.push(item);
     this.saveDatabase();
     return item;
+  }
+
+  public addMemoryWithLineage(itemData: Omit<LongTermMemoryItem, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: string; updatedAt?: string }): LongTermMemoryItem {
+    const now = new Date().toISOString();
+    const item: LongTermMemoryItem = {
+      id: `mem-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      createdAt: itemData.createdAt || now,
+      updatedAt: itemData.updatedAt || now,
+      ...itemData,
+    };
+    this.db.memories.push(item);
+    this.saveDatabase();
+    return item;
+  }
+
+  public supersedeMemory(memoryId: string, profileId: string, newMemoryId: string): LongTermMemoryItem | undefined {
+    const mem = this.db.memories.find((m) => m.id === memoryId && m.profileId === profileId);
+    if (mem) {
+      mem.superseded = true;
+      mem.supersededBy = newMemoryId;
+      mem.supersededAt = new Date().toISOString();
+      mem.updatedAt = new Date().toISOString();
+      this.saveDatabase();
+      return mem;
+    }
+    return undefined;
   }
 
   public deleteMemory(memoryId: string, profileId: string): boolean {
