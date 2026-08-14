@@ -1,6 +1,6 @@
 {
   "name": "anamnesis-sentinel",
-  "private": true,
+  "private": false,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -21,7 +21,8 @@
     "motion": "^12.4.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
