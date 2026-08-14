@@ -1,12 +1,14 @@
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 export interface UserProfile {
   id: string;
   name: string;
   email?: string;
   role: 'OWNER' | 'MEMBER' | 'GUEST';
-  passcode?: string; // 4-digit PIN or password
+  // passcodeHash stores a bcrypt hash of the user's passcode (never store plaintext passcodes)
+  passcodeHash?: string;
   avatarColor: string;
   createdAt: string;
   lastActive: string;
@@ -63,7 +65,7 @@ const DEFAULT_WILL_PROFILE: UserProfile = {
   name: "Will's Personal Space",
   email: 'will@laura.ai',
   role: 'OWNER',
-  passcode: '', // default open or 4-digit pin set by Will
+  passcodeHash: undefined,
   avatarColor: 'from-purple-600 to-indigo-600',
   createdAt: new Date().toISOString(),
   lastActive: new Date().toISOString(),
@@ -100,6 +102,12 @@ const DEFAULT_INITIAL_MEMORIES: LongTermMemoryItem[] = [
   },
 ];
 
+function hashPasscodeSync(passcode: string): string {
+  // Use bcrypt with a reasonable salt rounds (10)
+  const saltRounds = 10;
+  return bcrypt.hashSync(String(passcode), saltRounds);
+}
+
 export class PersistentStorage {
   private db: DatabaseSchema;
 
@@ -125,7 +133,34 @@ export class PersistentStorage {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.profiles)) {
           console.log(`[PersistentStorage] Loaded persistent database from ${DB_FILE}`);
-          return parsed;
+
+          // Migration: if any profile still contains a plaintext `passcode` field, convert it to a hashed passcode
+          let migrated = false;
+          for (const p of parsed.profiles) {
+            if ((p as any).passcode && typeof (p as any).passcode === 'string' && (p as any).passcode.trim() !== '') {
+              try {
+                const plain = (p as any).passcode;
+                p.passcodeHash = hashPasscodeSync(plain);
+                delete (p as any).passcode;
+                migrated = true;
+                console.log(`[PersistentStorage] Migrated passcode for profile ${p.id} to hashed value.`);
+              } catch (mErr) {
+                console.warn(`[PersistentStorage] Failed hashing passcode for profile ${p.id}:`, mErr);
+              }
+            }
+          }
+
+          if (migrated) {
+            // Save the migrated DB immediately to avoid keeping plaintext passcodes around
+            try {
+              fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+              console.log('[PersistentStorage] Persisted migrated passcodes as hashed values.');
+            } catch (wErr) {
+              console.error('[PersistentStorage] Failed saving migrated DB:', wErr);
+            }
+          }
+
+          return parsed as DatabaseSchema;
         }
       }
     } catch (err) {
@@ -166,12 +201,21 @@ export class PersistentStorage {
     const existingIdx = this.db.profiles.findIndex((p) => p.id === profile.id);
     const now = new Date().toISOString();
 
+    // If the caller supplied a plaintext passcode on create/update, hash it immediately
+    let passcodeHash: string | undefined = undefined;
+    if ((profile as any).passcode && typeof (profile as any).passcode === 'string' && (profile as any).passcode.trim() !== '') {
+      passcodeHash = hashPasscodeSync((profile as any).passcode);
+    }
+
     if (existingIdx >= 0) {
       const updated: UserProfile = {
         ...this.db.profiles[existingIdx],
         ...profile,
+        passcodeHash: passcodeHash || this.db.profiles[existingIdx].passcodeHash,
         lastActive: now,
       };
+      // Remove any accidental plaintext passcode property
+      delete (updated as any).passcode;
       this.db.profiles[existingIdx] = updated;
       this.saveDatabase();
       return updated;
@@ -181,7 +225,7 @@ export class PersistentStorage {
         name: profile.name,
         email: profile.email || `${profile.name.toLowerCase().replace(/\s+/g, '')}@gabby.ai`,
         role: profile.role || 'MEMBER',
-        passcode: profile.passcode || '',
+        passcodeHash: passcodeHash,
         avatarColor: profile.avatarColor || 'from-cyan-600 to-blue-600',
         createdAt: now,
         lastActive: now,
@@ -203,11 +247,17 @@ export class PersistentStorage {
     if (!prof) {
       return { success: false, message: 'Profile not found.' };
     }
-    if (prof.passcode && prof.passcode.trim() !== '') {
-      if (prof.passcode.trim() !== (passcode || '').trim()) {
+    // If a hashed passcode exists, require a passcode and verify it
+    if (prof.passcodeHash && prof.passcodeHash.trim() !== '') {
+      if (!passcode || typeof passcode !== 'string') {
+        return { success: false, message: 'Passcode required.' };
+      }
+      const matched = bcrypt.compareSync(String(passcode), prof.passcodeHash);
+      if (!matched) {
         return { success: false, message: 'Incorrect passcode.' };
       }
     }
+
     prof.lastActive = new Date().toISOString();
     this.saveDatabase();
     return { success: true, profile: prof };
