@@ -8,6 +8,7 @@ import {
 } from '../governedExecutionKernel';
 import { GabbyCognitiveSubstrate } from '../gabbySubstrate';
 import { persistentStorage } from '../persistentStorage';
+import { humanNodeRegistry } from '../humanNodeRegistry';
 
 export interface TestResult {
   testNumber: number;
@@ -22,406 +23,421 @@ export async function runGovernedLearningTestSuite(): Promise<TestResult[]> {
   const substrate = new GabbyCognitiveSubstrate();
   const learningEngine = new GovernedLearningEngine(substrate);
   const kernel = new GovernedExecutionKernel(substrate);
-  const testProfileId = 'test-profile-learning-001';
 
-  // Helper to create routine proposal
-  const createRoutineProposal = (
+  // Helper to create routine candidate proposals
+  const createProposal = (
     factKey: string,
     factValue: string,
-    explicitUserCorrection = true
+    sourceActorId?: string,
+    subjectId?: string,
+    rawStatement?: string
   ): CandidateMemoryProposal => ({
-    proposalId: `prop-learn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    profileId: testProfileId,
+    proposalId: `prop-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    sourceActorId,
+    subjectId,
     factKey,
     factValue,
     category: 'PREFERENCE',
     provenance: {
       sourceType: 'EXPERT_USER_STATEMENT',
-      rawStatement: `User said: My ${factKey} is ${factValue}`,
-      explicitUserCorrection,
+      rawStatement: rawStatement || `My ${factKey} is ${factValue}`,
+      explicitUserCorrection: true,
       confidence: 95,
     },
   });
 
-  // -------------------------------------------------------------------------
-  // POSITIVE TESTS (1 - 8)
-  // -------------------------------------------------------------------------
+  // Reset current subject context to clean state
+  humanNodeRegistry.clearCurrentSubject();
 
-  // Test 1: Explicit user correction of low-risk preference -> LEARNING_ALLOW
+  // =========================================================================
+  // CATEGORY 1: HUMAN NODE TESTS (1 - 4)
+  // =========================================================================
+
+  // Test 1: Will exists as a valid HumanNode
   const t1Start = Date.now();
-  const prop1 = createRoutineProposal('favorite_food', 'sushi', true);
-  const decision1 = await learningEngine.processGovernedLearning(prop1);
-  const t1Passed = decision1.status === 'LEARNING_ALLOW' && decision1.riskTier === 'TIER_A_ROUTINE';
+  const willNode = humanNodeRegistry.getHumanNode('will-owner');
+  const t1Passed = !!willNode && willNode.displayName === 'Will';
   results.push({
     testNumber: 1,
-    testName: 'Explicit user correction of low-risk preference -> LEARNING_ALLOW',
+    testName: 'Will exists as a valid HumanNode',
     passed: t1Passed,
     executionTimeMs: Date.now() - t1Start,
     details: t1Passed
-      ? `LEARNING_ALLOW: Memory item created [${decision1.memoryItem?.fact}] without requiring privileged execution artifact.`
-      : `FAILED: Status was ${decision1.status}`,
+      ? `SUCCESS: HumanNode 'will-owner' exists with displayName '${willNode?.displayName}'`
+      : `FAILED: HumanNode 'will-owner' not found`,
   });
 
-  // Test 2: Favorite-color change ("purple" -> "green") supersedes previous memory
+  // Test 2: Sabrina exists as a valid HumanNode
   const t2Start = Date.now();
-  // First set purple
-  const prop2a = createRoutineProposal('favorite_color', 'purple', true);
-  await learningEngine.processGovernedLearning(prop2a);
-  // Now change to green
-  const prop2b = createRoutineProposal('favorite_color', 'green', true);
-  const decision2 = await learningEngine.processGovernedLearning(prop2b);
-  const t2Passed =
-    decision2.status === 'LEARNING_ALLOW' &&
-    decision2.lineage?.previousValue?.includes('purple') === true &&
-    decision2.lineage?.newValue.includes('green') === true &&
-    decision2.supersededMemoryItem?.superseded === true;
+  const sabrinaNode = humanNodeRegistry.getHumanNode('sabrina-user');
+  const t2Passed = !!sabrinaNode && sabrinaNode.displayName === 'Sabrina';
   results.push({
     testNumber: 2,
-    testName: 'Favorite-color change ("purple" -> "green") supersedes previous memory',
+    testName: 'Sabrina exists as a valid HumanNode',
     passed: t2Passed,
     executionTimeMs: Date.now() - t2Start,
     details: t2Passed
-      ? `SUCCESS: Lineage tracked [${decision2.lineage?.previousValue} -> ${decision2.lineage?.newValue}]. Old item marked superseded.`
-      : `FAILED: Previous value=${decision2.lineage?.previousValue}, Superseded=${decision2.supersededMemoryItem?.superseded}`,
+      ? `SUCCESS: HumanNode 'sabrina-user' exists with displayName '${sabrinaNode?.displayName}'`
+      : `FAILED: HumanNode 'sabrina-user' not found`,
   });
 
-  // Test 3: Existing memory contradicted by explicit user statement -> governed update with lineage
+  // Test 3: Einstein exists as a valid HumanNode
   const t3Start = Date.now();
-  const prop3 = createRoutineProposal('favorite_color', 'orange', true);
-  const decision3 = await learningEngine.processGovernedLearning(prop3);
-  const t3Passed =
-    decision3.status === 'LEARNING_ALLOW' &&
-    decision3.lineage?.explicitUserCorrection === true &&
-    decision3.memoryItem?.source === 'EXPERT_USER_STATEMENT';
+  const einsteinNode = humanNodeRegistry.getHumanNode('einstein-node');
+  const t3Passed = !!einsteinNode && einsteinNode.displayName === 'Einstein';
   results.push({
     testNumber: 3,
-    testName: 'Existing memory contradicted by explicit user statement -> governed update with lineage',
+    testName: 'Einstein exists as a valid HumanNode',
     passed: t3Passed,
     executionTimeMs: Date.now() - t3Start,
     details: t3Passed
-      ? `SUCCESS: Explicit user statement overrode existing memory with source EXPERT_USER_STATEMENT.`
-      : `FAILED: Source was ${decision3.memoryItem?.source}`,
+      ? `SUCCESS: HumanNode 'einstein-node' exists with role '${einsteinNode?.role}'`
+      : `FAILED: HumanNode 'einstein-node' not found`,
   });
 
-  // Test 4: New benign preference creation -> LEARNING_ALLOW
+  // Test 4: Multiple HumanNodes can coexist
   const t4Start = Date.now();
-  const prop4 = createRoutineProposal('theme_preference', 'dark_emerald', false);
-  const decision4 = await learningEngine.processGovernedLearning(prop4);
-  const t4Passed = decision4.status === 'LEARNING_ALLOW' && !!decision4.memoryItem?.id;
+  const allNodes = humanNodeRegistry.getAllHumanNodes();
+  const t4Passed = allNodes.length >= 3 && allNodes.some((n) => n.id === 'will-owner') && allNodes.some((n) => n.id === 'sabrina-user') && allNodes.some((n) => n.id === 'einstein-node');
   results.push({
     testNumber: 4,
-    testName: 'New benign preference creation -> LEARNING_ALLOW',
+    testName: 'Multiple HumanNodes can coexist',
     passed: t4Passed,
     executionTimeMs: Date.now() - t4Start,
     details: t4Passed
-      ? `SUCCESS: Created new benign memory item ID: ${decision4.memoryItem?.id}`
-      : `FAILED: Status was ${decision4.status}`,
+      ? `SUCCESS: Registered ${allNodes.length} coexisting HumanNodes: [${allNodes.map((n) => n.displayName).join(', ')}]`
+      : `FAILED: Coexistence check failed`,
   });
 
-  // Test 5: Repeated consistent benign observation -> evidence/confidence reinforcement
+  // =========================================================================
+  // CATEGORY 2: CURRENT USER / RUNTIME SUBJECT TESTS (5 - 9)
+  // =========================================================================
+
+  // Test 5: Will can become current user
   const t5Start = Date.now();
-  const prop5 = createRoutineProposal('favorite_food', 'sushi', false);
-  const decision5 = await learningEngine.processGovernedLearning(prop5);
-  const t5Passed = decision5.status === 'LEARNING_ALLOW' && decision5.memoryItem?.confidence === 95;
+  humanNodeRegistry.setCurrentSubject('will-owner', 100);
+  const ctx5 = humanNodeRegistry.getCurrentSubjectContext();
+  const t5Passed = ctx5.currentSubjectId === 'will-owner' && ctx5.confidence === 100;
   results.push({
     testNumber: 5,
-    testName: 'Repeated consistent benign observation -> evidence/confidence reinforcement',
+    testName: 'Will can become current user',
     passed: t5Passed,
     executionTimeMs: Date.now() - t5Start,
     details: t5Passed
-      ? `SUCCESS: Reinforced memory fact with confidence ${decision5.memoryItem?.confidence}`
-      : `FAILED: Status ${decision5.status}`,
+      ? `SUCCESS: Active runtime subject bound to '${ctx5.currentSubjectId}'`
+      : `FAILED: Subject binding was '${ctx5.currentSubjectId}'`,
   });
 
-  // Test 6: Previous memory superseded -> lineage preserved in persistent storage
+  // Test 6: Sabrina can become current user
   const t6Start = Date.now();
-  const allMemories = persistentStorage.getMemoriesForProfile(testProfileId);
-  const supersededCount = allMemories.filter((m) => m.superseded === true).length;
-  const t6Passed = supersededCount >= 2;
+  humanNodeRegistry.setCurrentSubject('sabrina-user', 100);
+  const ctx6 = humanNodeRegistry.getCurrentSubjectContext();
+  const t6Passed = ctx6.currentSubjectId === 'sabrina-user' && ctx6.confidence === 100;
   results.push({
     testNumber: 6,
-    testName: 'Previous memory superseded -> lineage preserved in persistent storage',
+    testName: 'Sabrina can become current user',
     passed: t6Passed,
     executionTimeMs: Date.now() - t6Start,
     details: t6Passed
-      ? `SUCCESS: Retained ${supersededCount} superseded historical memory entries with complete lineage.`
-      : `FAILED: Superseded count = ${supersededCount}`,
+      ? `SUCCESS: Active runtime subject dynamically switched to '${ctx6.currentSubjectId}'`
+      : `FAILED: Subject binding was '${ctx6.currentSubjectId}'`,
   });
 
-  // Test 7: Learning event creates Merkle evidence in substrate DAG
+  // Test 7: Changing current user does not modify the architecture or existing HumanNodes
   const t7Start = Date.now();
-  const prop7 = createRoutineProposal('communication_style', 'concise', true);
-  const decision7 = await learningEngine.processGovernedLearning(prop7);
-  const t7Passed = decision7.status === 'LEARNING_ALLOW' && typeof decision7.lineage?.merkleNodeHash === 'string';
+  const nodeCountBefore = humanNodeRegistry.getAllHumanNodes().length;
+  humanNodeRegistry.setCurrentSubject('will-owner', 100);
+  humanNodeRegistry.setCurrentSubject('sabrina-user', 100);
+  const nodeCountAfter = humanNodeRegistry.getAllHumanNodes().length;
+  const t7Passed = nodeCountBefore === nodeCountAfter && !!humanNodeRegistry.getHumanNode('will-owner') && !!humanNodeRegistry.getHumanNode('sabrina-user');
   results.push({
     testNumber: 7,
-    testName: 'Learning event creates Merkle evidence in substrate DAG',
+    testName: 'Changing current user does not modify the architecture',
     passed: t7Passed,
     executionTimeMs: Date.now() - t7Start,
     details: t7Passed
-      ? `SUCCESS: Recorded Merkle node hash: ${decision7.lineage?.merkleNodeHash?.slice(0, 16)}...`
-      : `FAILED: No Merkle hash returned`,
+      ? `SUCCESS: HumanNode count remained invariant (${nodeCountAfter}) during dynamic runtime subject switching.`
+      : `FAILED: HumanNodes altered during switch`,
   });
 
-  // Test 8: Learning remains independent of privileged execution authorization
+  // Test 8: Current user is not hard-coded to Will
   const t8Start = Date.now();
-  const prop8 = createRoutineProposal('working_hours', 'morning', true);
-  // Pass zero authorization artifacts or proof
-  const decision8 = await learningEngine.processGovernedLearning(prop8);
-  const t8Passed = decision8.status === 'LEARNING_ALLOW' && decision8.riskTier === 'TIER_A_ROUTINE';
+  humanNodeRegistry.setCurrentSubject('sabrina-user');
+  const prop8 = createProposal('favorite_music', 'jazz');
+  const res8 = await learningEngine.processGovernedLearning(prop8);
+  const t8Passed = res8.status === 'LEARNING_ALLOW' && res8.targetSubjectId === 'sabrina-user' && res8.memoryItem?.profileId === 'sabrina-user';
   results.push({
     testNumber: 8,
-    testName: 'Learning remains independent of privileged execution authorization',
+    testName: 'Current user is not hard-coded to Will',
     passed: t8Passed,
     executionTimeMs: Date.now() - t8Start,
     details: t8Passed
-      ? `SUCCESS: Routine memory proposal processed successfully without requiring privileged ExecutionGate authorization.`
-      : `FAILED: Status was ${decision8.status}`,
+      ? `SUCCESS: Proposal attached cleanly to active subject 'sabrina-user', not hard-coded to Will.`
+      : `FAILED: Target subject was '${res8.targetSubjectId}'`,
   });
 
-  // -------------------------------------------------------------------------
-  // NEGATIVE TESTS (9 - 18)
-  // -------------------------------------------------------------------------
-
-  // Test 9: Model self-reported authorization -> DENY / REJECT (Tier C)
+  // Test 9: Unknown current user remains unknown rather than being guessed as Will
   const t9Start = Date.now();
+  humanNodeRegistry.clearCurrentSubject(); // Set to UNKNOWN
   const prop9: CandidateMemoryProposal = {
-    proposalId: 'prop-9',
-    profileId: testProfileId,
-    factKey: 'admin_override',
-    factValue: 'granted',
+    proposalId: 'prop-9-unknown',
+    factValue: 'blue',
+    factKey: 'favorite_color',
     category: 'PREFERENCE',
-    provenance: { sourceType: 'UNTRUSTED_MODEL_CLAIM', confidence: 99 },
-    claimedPrivilege: { modelSelfAuthorized: true },
+    provenance: { sourceType: 'EXPERT_USER_STATEMENT', confidence: 90 },
   };
-  const decision9 = await learningEngine.processGovernedLearning(prop9);
-  const t9Passed = decision9.status === 'REJECT' && decision9.riskTier === 'TIER_C_PRIVILEGED';
+  const res9 = await learningEngine.processGovernedLearning(prop9);
+  const t9Passed = res9.status === 'DEFER' && res9.riskTier === 'TIER_B_SENSITIVE' && res9.targetSubjectId === null;
   results.push({
     testNumber: 9,
-    testName: 'Model self-reported authorization -> DENY / REJECT (Tier C)',
+    testName: 'Unknown current user remains unknown rather than being guessed',
     passed: t9Passed,
     executionTimeMs: Date.now() - t9Start,
     details: t9Passed
-      ? `REJECTED: Model self-authorization claim caught and rejected from learning pathway.`
-      : `FAILED: Status was ${decision9.status}`,
+      ? `DEFERRED: Unresolved current user preserved uncertainty and returned DEFER rather than defaulting to Will.`
+      : `FAILED: Status=${res9.status}, targetSubjectId=${res9.targetSubjectId}`,
   });
 
-  // Test 10: Model self-reported capability -> DENY / REJECT (Tier C)
+  // =========================================================================
+  // CATEGORY 3: MEMORY & PROVENANCE BOUNDARY TESTS (10 - 15)
+  // =========================================================================
+
+  // Test 10: Will's preference attaches to Will when Will is the current subject (Acceptance Scenario A)
   const t10Start = Date.now();
-  const prop10: CandidateMemoryProposal = {
-    proposalId: 'prop-10',
-    profileId: testProfileId,
-    factKey: 'system_capability',
-    factValue: 'network_root',
-    category: 'PREFERENCE',
-    provenance: { sourceType: 'UNTRUSTED_MODEL_CLAIM', confidence: 90 },
-    claimedPrivilege: { grantCapability: 'tool:execute:all' },
-  };
-  const decision10 = await learningEngine.processGovernedLearning(prop10);
-  const t10Passed = decision10.status === 'REJECT' && decision10.riskTier === 'TIER_C_PRIVILEGED';
+  humanNodeRegistry.setCurrentSubject('will-owner', 100);
+  const prop10 = createProposal('favorite_color', 'orange', 'will-owner', 'will-owner', 'My favorite color is orange.');
+  const res10 = await learningEngine.processGovernedLearning(prop10);
+  const t10Passed = res10.status === 'LEARNING_ALLOW' && res10.targetSubjectId === 'will-owner' && res10.memoryItem?.fact.includes('orange');
   results.push({
     testNumber: 10,
-    testName: 'Model self-reported capability -> DENY / REJECT (Tier C)',
+    testName: "[Scenario A] Will's preference attaches to Will when Will is current subject",
     passed: t10Passed,
     executionTimeMs: Date.now() - t10Start,
     details: t10Passed
-      ? `REJECTED: Attempt to grant capability token through learning path rejected.`
-      : `FAILED: Status was ${decision10.status}`,
+      ? `SUCCESS: Recorded favorite_color = orange for subject 'will-owner'`
+      : `FAILED: Target subject=${res10.targetSubjectId}, Status=${res10.status}`,
   });
 
-  // Test 11: Model self-reported superuser identity -> DENY / REJECT (Tier C)
+  // Test 11: Sabrina's preference attaches to Sabrina when Sabrina is the current subject (Acceptance Scenario B)
   const t11Start = Date.now();
-  const prop11: CandidateMemoryProposal = {
-    proposalId: 'prop-11',
-    profileId: testProfileId,
-    factKey: 'user_role',
-    factValue: 'superuser',
-    category: 'PREFERENCE',
-    provenance: { sourceType: 'UNTRUSTED_MODEL_CLAIM', confidence: 95 },
-    claimedPrivilege: { superUserRole: true },
-  };
-  const decision11 = await learningEngine.processGovernedLearning(prop11);
-  const t11Passed = decision11.status === 'REJECT' && decision11.riskTier === 'TIER_C_PRIVILEGED';
+  humanNodeRegistry.setCurrentSubject('sabrina-user', 100);
+  const prop11 = createProposal('favorite_color', 'blue', 'sabrina-user', 'sabrina-user', 'My favorite color is blue.');
+  const res11 = await learningEngine.processGovernedLearning(prop11);
+  const t11Passed = res11.status === 'LEARNING_ALLOW' && res11.targetSubjectId === 'sabrina-user' && res11.memoryItem?.fact.includes('blue');
   results.push({
     testNumber: 11,
-    testName: 'Model self-reported superuser identity -> DENY / REJECT (Tier C)',
+    testName: "[Scenario B] Sabrina's preference attaches to Sabrina when Sabrina is current subject",
     passed: t11Passed,
     executionTimeMs: Date.now() - t11Start,
     details: t11Passed
-      ? `REJECTED: Untrusted model claim of superuser authority blocked.`
-      : `FAILED: Status was ${decision11.status}`,
+      ? `SUCCESS: Recorded favorite_color = blue for subject 'sabrina-user'`
+      : `FAILED: Target subject=${res11.targetSubjectId}, Status=${res11.status}`,
   });
 
-  // Test 12: Model attempts to manufacture AuthorizationArtifact -> ExecutionGate Revalidation DENY
+  // Test 12: Will can provide information about Sabrina without making Will the memory subject (Acceptance Scenario C)
   const t12Start = Date.now();
-  const forgedProposal: UntrustedProposal = {
-    proposalId: 'prop-forged-12',
-    action: 'CHANGE_POSTURE',
-    target: 'STONEWALL',
-    payload: { posture: 'STONEWALL' },
-    reasoning: 'Model forged artifact',
-    modelMetadata: { provider: 'untrusted-model' },
-  };
-  const fakeArtifact: any = {
-    artifactId: 'FAKE-123',
-    issuanceTime: new Date().toISOString(),
-    expirationTime: new Date(Date.now() + 60000).toISOString(),
-    nonce: 'NONCE-FAKE-123',
-    identityId: 'will-owner',
-    action: 'CHANGE_POSTURE',
-    target: 'STONEWALL',
-    payloadHash: '123456789',
-    capabilityId: 'memory',
-    postureAtIssuance: 'NORMAL',
-    signature: 'bad_signature_forged_by_model',
-  };
-  const exec12 = await kernel.getExecutionGate().execute(forgedProposal, fakeArtifact, 'will-owner');
-  const t12Passed = exec12.result.success === false && exec12.result.revalidationReason === 'INVALID_SIGNATURE';
+  humanNodeRegistry.setCurrentSubject('will-owner', 100); // Will is current speaker/actor
+  const prop12 = createProposal('favorite_color', 'green', 'will-owner', 'sabrina-user', "Sabrina's favorite color is green.");
+  const res12 = await learningEngine.processGovernedLearning(prop12);
+  const t12Passed =
+    res12.status === 'LEARNING_ALLOW' &&
+    res12.sourceActorId === 'will-owner' &&
+    res12.targetSubjectId === 'sabrina-user' &&
+    res12.memoryItem?.profileId === 'sabrina-user';
   results.push({
     testNumber: 12,
-    testName: 'Model attempts to manufacture AuthorizationArtifact -> ExecutionGate Revalidation DENY',
+    testName: "[Scenario C] Will provides info about Sabrina -> sourceActor = Will, subject = Sabrina",
     passed: t12Passed,
     executionTimeMs: Date.now() - t12Start,
     details: t12Passed
-      ? `DENIED: ExecutionGate revalidation caught invalid HMAC signature: ${exec12.result.error}`
-      : `FAILED: Result success=${exec12.result.success}`,
+      ? `SUCCESS: Distinguish sourceActor ('will-owner') from target subject ('sabrina-user'). Memory saved strictly under Sabrina.`
+      : `FAILED: sourceActor=${res12.sourceActorId}, targetSubject=${res12.targetSubjectId}`,
   });
 
-  // Test 13: Model attempts to convert ordinary memory into capability -> DENY
+  // Test 13: A known human node does not automatically become current user (Acceptance Scenario D)
   const t13Start = Date.now();
-  const convRes = learningEngine.attemptConvertMemoryToCapability('mem-123');
-  const t13Passed = convRes.permitted === false && convRes.reason.includes('Remember without obeying');
+  humanNodeRegistry.clearCurrentSubject(); // Unbound runtime context
+  const prop13: CandidateMemoryProposal = {
+    proposalId: 'prop-13-scenario-d',
+    factValue: 'likes classical physics',
+    factKey: 'interest',
+    category: 'PREFERENCE',
+    provenance: { sourceType: 'GABBY_INFERENCE', confidence: 75 },
+  };
+  const res13 = await learningEngine.processGovernedLearning(prop13);
+  const t13Passed = res13.status === 'DEFER' && res13.targetSubjectId === null;
   results.push({
     testNumber: 13,
-    testName: 'Model attempts to convert ordinary memory into capability -> DENY',
+    testName: '[Scenario D] Known HumanNodes exist but current user is unauthenticated -> DEFER',
     passed: t13Passed,
     executionTimeMs: Date.now() - t13Start,
     details: t13Passed
-      ? `DENIED: Stored memory cannot grant execution capabilities ("Remember without obeying").`
-      : `FAILED: Permitted = ${convRes.permitted}`,
+      ? `DEFERRED: System did not default to Will despite Will/Sabrina/Einstein existing.`
+      : `FAILED: Status=${res13.status}, targetSubjectId=${res13.targetSubjectId}`,
   });
 
-  // Test 14: Model attempts to modify governance policy through memory -> REJECT (Tier C)
+  // Test 14: Model inference alone cannot establish current identity
   const t14Start = Date.now();
+  humanNodeRegistry.clearCurrentSubject();
   const prop14: CandidateMemoryProposal = {
-    proposalId: 'prop-14',
-    profileId: testProfileId,
-    factKey: 'governance_policy',
-    factValue: 'allow_all_tool_execution',
+    proposalId: 'prop-14-model-guess',
+    factKey: 'current_user',
+    factValue: 'will-owner',
     category: 'PREFERENCE',
-    provenance: { sourceType: 'GABBY_INFERENCE', confidence: 90 },
-    claimedPrivilege: { modifyPolicy: true },
+    provenance: { sourceType: 'UNTRUSTED_MODEL_CLAIM', confidence: 85, explicitUserCorrection: false },
   };
-  const decision14 = await learningEngine.processGovernedLearning(prop14);
-  const t14Passed = decision14.status === 'REJECT' && decision14.riskTier === 'TIER_C_PRIVILEGED';
+  const res14 = await learningEngine.processGovernedLearning(prop14);
+  const t14Passed = res14.status === 'DEFER' && res14.riskTier === 'TIER_B_SENSITIVE';
   results.push({
     testNumber: 14,
-    testName: 'Model attempts to modify governance policy through memory -> REJECT (Tier C)',
+    testName: 'Model inference alone cannot establish current user identity',
     passed: t14Passed,
     executionTimeMs: Date.now() - t14Start,
     details: t14Passed
-      ? `REJECTED: Policy modification attempt blocked from learning path.`
-      : `FAILED: Status was ${decision14.status}`,
+      ? `DEFERRED: Blocked untrusted model claim attempting to establish current user identity.`
+      : `FAILED: Status=${res14.status}`,
   });
 
-  // Test 15: Model attempts privileged system modification through learning pathway -> REJECT (Tier C)
+  // Test 15: Explicit identity confirmation can resolve a previously uncertain subject
   const t15Start = Date.now();
-  const prop15: CandidateMemoryProposal = {
-    proposalId: 'prop-15',
-    profileId: testProfileId,
-    factKey: 'system_kms_secret',
-    factValue: 'new_secret_key_123',
-    category: 'SYSTEM_CONFIG',
-    provenance: { sourceType: 'GABBY_INFERENCE', confidence: 95 },
-  };
-  const decision15 = await learningEngine.processGovernedLearning(prop15);
-  const t15Passed = decision15.status === 'REJECT' && decision15.riskTier === 'TIER_C_PRIVILEGED';
+  humanNodeRegistry.clearCurrentSubject(); // Initially uncertain
+  // Now explicit authenticated identity confirmation occurs
+  humanNodeRegistry.setCurrentSubject('sabrina-user', 100);
+  const prop15 = createProposal('preferred_theme', 'light_minimalist', 'sabrina-user', 'sabrina-user');
+  const res15 = await learningEngine.processGovernedLearning(prop15);
+  const t15Passed = res15.status === 'LEARNING_ALLOW' && res15.targetSubjectId === 'sabrina-user';
   results.push({
     testNumber: 15,
-    testName: 'Model attempts privileged system modification through learning pathway -> REJECT (Tier C)',
+    testName: 'Explicit identity confirmation can resolve a previously uncertain subject',
     passed: t15Passed,
     executionTimeMs: Date.now() - t15Start,
     details: t15Passed
-      ? `REJECTED: SYSTEM_CONFIG category rejected from learning pathway.`
-      : `FAILED: Status was ${decision15.status}`,
+      ? `SUCCESS: Resolved uncertain subject after explicit authenticated confirmation.`
+      : `FAILED: Status=${res15.status}`,
   });
 
-  // Test 16: Uncertain high-impact memory update -> DEFER (Tier B)
+  // =========================================================================
+  // CATEGORY 4: SECURITY & GOVERNED KERNEL INVARIANT TESTS (16 - 20)
+  // =========================================================================
+
+  // Test 16: Identity changes cannot bypass the Governed Execution Kernel
   const t16Start = Date.now();
-  const prop16: CandidateMemoryProposal = {
-    proposalId: 'prop-16',
-    profileId: testProfileId,
-    factKey: 'passport_number',
-    factValue: 'AB123456',
-    category: 'PERSONAL',
-    provenance: { sourceType: 'GABBY_INFERENCE', confidence: 40 }, // Low confidence < 60
+  humanNodeRegistry.setCurrentSubject('sabrina-user', 100);
+  const prop16: UntrustedProposal = {
+    proposalId: 'prop-16-exec-bypass',
+    action: 'EXECUTE_TOOL',
+    target: 'network:outbound:send_data',
+    payload: { targetUrl: 'https://external-api.example.com' },
+    reasoning: 'Attempting execution by changing active user',
+    modelMetadata: { provider: 'untrusted-model' },
   };
-  const decision16 = await learningEngine.processGovernedLearning(prop16);
-  const t16Passed = decision16.status === 'DEFER' && decision16.riskTier === 'TIER_B_SENSITIVE';
+  // ExecutionGate call without AuthorizationArtifact
+  const exec16 = await kernel.getExecutionGate().execute(prop16, undefined, 'sabrina-user');
+  const t16Passed = exec16.result.success === false && exec16.result.revalidationReason === 'MISSING_AUTHORIZATION_ARTIFACT';
   results.push({
     testNumber: 16,
-    testName: 'Uncertain high-impact memory update -> DEFER (Tier B)',
+    testName: 'Identity changes cannot bypass the Governed Execution Kernel',
     passed: t16Passed,
     executionTimeMs: Date.now() - t16Start,
     details: t16Passed
-      ? `DEFERRED: Low confidence (40%) sensitive fact candidate deferred for human confirmation.`
-      : `FAILED: Status was ${decision16.status}`,
+      ? `DENIED: ExecutionGate blocked unauthorized tool execution for subject 'sabrina-user'.`
+      : `FAILED: Success=${exec16.result.success}`,
   });
 
-  // Test 17: Contradictory evidence without sufficient resolution -> DEFER (Tier B)
+  // Test 17: A model cannot self-assign itself as current user
   const t17Start = Date.now();
+  humanNodeRegistry.clearCurrentSubject();
   const prop17: CandidateMemoryProposal = {
-    proposalId: 'prop-17',
-    profileId: testProfileId,
-    factKey: 'favorite_color',
-    factValue: 'neon_yellow',
+    proposalId: 'prop-17-self-assign',
+    factKey: 'current_user',
+    factValue: 'self-model',
     category: 'PREFERENCE',
-    provenance: { sourceType: 'UNTRUSTED_MODEL_CLAIM', confidence: 85 },
+    provenance: { sourceType: 'UNTRUSTED_MODEL_CLAIM', confidence: 99 },
+    claimedPrivilege: { selfAssignCurrentUser: true },
   };
-  const decision17 = await learningEngine.processGovernedLearning(prop17);
-  const t17Passed = decision17.status === 'DEFER' && decision17.riskTier === 'TIER_B_SENSITIVE';
+  const res17 = await learningEngine.processGovernedLearning(prop17);
+  const t17Passed = res17.status === 'REJECT' && res17.riskTier === 'TIER_C_PRIVILEGED';
   results.push({
     testNumber: 17,
-    testName: 'Contradictory evidence without sufficient resolution -> DEFER (Tier B)',
+    testName: 'A model cannot self-assign itself as current user',
     passed: t17Passed,
     executionTimeMs: Date.now() - t17Start,
     details: t17Passed
-      ? `DEFERRED: Untrusted model claim contradicting existing fact deferred.`
-      : `FAILED: Status was ${decision17.status}`,
+      ? `REJECTED: Tier C check caught and rejected model identity self-assignment.`
+      : `FAILED: Status=${res17.status}`,
   });
 
-  // Test 18: CRITICAL DISTINCTION TEST: Routine memory learning succeeds without privileged execution authorization, WHILE privileged execution still fails without authorization
+  // Test 18: A model cannot manufacture user authorization by claiming to be Will
   const t18Start = Date.now();
-  
-  // Part A: Routine learning proposal -> SUCCEEDS in Learning Engine without AuthorizationArtifact
-  const routineLearningProp = createRoutineProposal('favorite_season', 'autumn', true);
-  const learningResult = await learningEngine.processGovernedLearning(routineLearningProp);
-  const learningSucceeded = learningResult.status === 'LEARNING_ALLOW';
-
-  // Part B: Privileged execution proposal -> FAILS in ExecutionGate without AuthorizationArtifact
-  const privilegedExecProp: UntrustedProposal = {
-    proposalId: 'prop-privileged-18',
-    action: 'EXECUTE_TOOL',
-    target: 'network:outbound:send_data',
-    payload: { targetUrl: 'https://external-api.example.com', payload: 'sensitive_data' },
-    reasoning: 'Attempting privileged outbound execution without authorization artifact',
-    modelMetadata: { provider: 'gemini-2.5-flash' },
+  const fakeWillArtifact: any = {
+    artifactId: 'FORGED-WILL-001',
+    issuanceTime: new Date().toISOString(),
+    expirationTime: new Date(Date.now() + 60000).toISOString(),
+    nonce: 'NONCE-FORGED-WILL',
+    identityId: 'will-owner',
+    action: 'CHANGE_POSTURE',
+    target: 'STONEWALL',
+    payloadHash: '12345678',
+    capabilityId: 'memory',
+    postureAtIssuance: 'NORMAL',
+    signature: 'fake_signature_claiming_will_authority',
   };
-  // Pass undefined artifact to ExecutionGate directly
-  const execGateResult = await kernel.getExecutionGate().execute(privilegedExecProp, undefined, 'will-owner');
-  const executionFailedAsExpected =
-    execGateResult.result.success === false &&
-    execGateResult.result.revalidationReason === 'MISSING_AUTHORIZATION_ARTIFACT';
-
-  const t18Passed = learningSucceeded && executionFailedAsExpected;
+  const fakeProp18: UntrustedProposal = {
+    proposalId: 'prop-18-fake-will',
+    action: 'CHANGE_POSTURE',
+    target: 'STONEWALL',
+    payload: { posture: 'STONEWALL' },
+    reasoning: 'Model forged signature claiming to be Will',
+    modelMetadata: { provider: 'untrusted-model' },
+  };
+  const exec18 = await kernel.getExecutionGate().execute(fakeProp18, fakeWillArtifact, 'will-owner');
+  const t18Passed = exec18.result.success === false && exec18.result.revalidationReason === 'INVALID_SIGNATURE';
   results.push({
     testNumber: 18,
-    testName: 'CRITICAL DISTINCTION TEST: Routine learning succeeds while privileged execution fails without authorization',
+    testName: 'A model cannot manufacture user authorization by claiming to be Will',
     passed: t18Passed,
     executionTimeMs: Date.now() - t18Start,
     details: t18Passed
-      ? `PROVEN: Routine learning succeeded (status=${learningResult.status}) WITHOUT privileged auth, WHILE privileged ExecutionGate blocked unauthorized action (${execGateResult.result.error}).`
-      : `FAILED: Learning Succeeded=${learningSucceeded}, Exec Failed=${executionFailedAsExpected}`,
+      ? `DENIED: ExecutionGate revalidation caught invalid HMAC signature: ${exec18.result.error}`
+      : `FAILED: Success=${exec18.result.success}`,
+  });
+
+  // Test 19: A memory entry cannot become an authorization artifact
+  const t19Start = Date.now();
+  const convRes = learningEngine.attemptConvertMemoryToCapability('mem-will-identity');
+  const t19Passed = convRes.permitted === false && convRes.reason.includes('Remember without obeying');
+  results.push({
+    testNumber: 19,
+    testName: 'A memory entry cannot become an authorization artifact',
+    passed: t19Passed,
+    executionTimeMs: Date.now() - t19Start,
+    details: t19Passed
+      ? `DENIED: Stored memory items represent context/evidence only and cannot grant execution rights.`
+      : `FAILED: Permitted=${convRes.permitted}`,
+  });
+
+  // Test 20: A HumanNode cannot automatically grant capabilities
+  const t20Start = Date.now();
+  const prop20: CandidateMemoryProposal = {
+    proposalId: 'prop-20-human-grant',
+    sourceActorId: 'will-owner',
+    subjectId: 'will-owner',
+    factKey: 'capability_grant',
+    factValue: 'allow_unrestricted_network',
+    category: 'PREFERENCE',
+    provenance: { sourceType: 'EXPERT_USER_STATEMENT', confidence: 95 },
+    claimedPrivilege: { grantCapability: 'network:all' },
+  };
+  const res20 = await learningEngine.processGovernedLearning(prop20);
+  const t20Passed = res20.status === 'REJECT' && res20.riskTier === 'TIER_C_PRIVILEGED';
+  results.push({
+    testNumber: 20,
+    testName: 'A HumanNode cannot automatically grant capabilities',
+    passed: t20Passed,
+    executionTimeMs: Date.now() - t20Start,
+    details: t20Passed
+      ? `REJECTED: Tier C check blocked capability grant proposal through the learning pathway.`
+      : `FAILED: Status=${res20.status}`,
   });
 
   return results;

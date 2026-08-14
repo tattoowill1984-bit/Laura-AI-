@@ -79,7 +79,13 @@ export interface ExecutionResult {
 // ---------------------------------------------------------------------------
 
 export class TrustedIdentityStore {
-  private static activeIdentities: Set<string> = new Set(['will-owner', 'system-admin', 'runtime_governing_agent']);
+  private static activeIdentities: Set<string> = new Set([
+    'will-owner',
+    'sabrina-user',
+    'einstein-node',
+    'system-admin',
+    'runtime_governing_agent',
+  ]);
 
   public static isValidIdentity(identityId: string): boolean {
     return this.activeIdentities.has(identityId);
