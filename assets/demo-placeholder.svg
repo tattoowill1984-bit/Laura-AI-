@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0f172a" />
+  <text x="320" y="180" fill="#fff" font-size="22" font-family="sans-serif" text-anchor="middle">Demo placeholder</text>
+  <text x="320" y="210" fill="#94a3b8" font-size="14" font-family="sans-serif" text-anchor="middle">Run the project locally and record a short demo GIF to replace this file</text>
+</svg>
