@@ -190,6 +190,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Invalid posture' });
       }
       kernel.setPosture(posture);
+      governedExecutionKernel.setPosture(posture);
       res.json({ success: true, posture: kernel.getPosture(), epistemicState: kernel.getEpistemicState() });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Posture update error' });

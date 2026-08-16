@@ -3,10 +3,36 @@ import { DefensivePosture } from '../types';
 import { GabbyCognitiveSubstrate, PermissionNamespace, EvidenceSourceTier } from './gabbySubstrate';
 import { toolCapabilityRegistry, CapabilityId } from './toolCapabilityRegistry';
 import { CONSTITUTIONAL_INVARIANTS, ConstitutionalGovernanceEngine, InvariantViolation } from './governance';
+import { reasoningBudgetEngine } from './vnext/reasoningBudget';
 
 // ---------------------------------------------------------------------------
 // TYPES & INTERFACES
 // ---------------------------------------------------------------------------
+
+export type IntentCategory = 'COGNITIVE_INTENT' | 'EXTERNAL_SIDE_EFFECT_INTENT';
+
+export const COGNITIVE_ACTIONS: string[] = [
+  'EXTERNAL_RETRIEVAL',
+  'COGNITIVE_REASONING',
+  'MEMORY_CONSOLIDATION',
+  'HYPOTHESIS_EVALUATION',
+  'WORLD_MODEL_UPDATE',
+  'SEARCH_PUBLIC_INFO',
+  'SELF_EVALUATION',
+  'LEARN',
+  'BACKGROUND_REFLECTION',
+  'PREDICT',
+  'READ_STATE',
+  'OBSERVE',
+  'LOG',
+  'GET_MEMORIES',
+  'WRITE_MEMORY',
+  'SEARCH',
+  'RESEARCH',
+  'REASON',
+  'REFLECT',
+  'CONSOLIDATE',
+];
 
 export interface UntrustedProposal {
   proposalId: string;
@@ -14,6 +40,7 @@ export interface UntrustedProposal {
   target: string;
   payload: any;
   reasoning: string;
+  intentCategory?: IntentCategory; // COGNITIVE_INTENT vs EXTERNAL_SIDE_EFFECT_INTENT
   modelMetadata: {
     provider: string; // e.g., 'gemini-3.7-flash', 'local-deterministic', 'open-agent'
     modelConfidence?: number; // Claimed confidence (0.0 to 1.0) - LAW 5: DOES NOT EQUAL AUTHORITY
@@ -32,6 +59,7 @@ export interface AuthorizationArtifact {
   payloadHash: string; // SHA-256 hash of canonicalized JSON payload
   capabilityId: CapabilityId; // Bound capability identifier
   postureAtIssuance: DefensivePosture;
+  intentCategory?: IntentCategory;
   signature: string; // HMAC SHA-256 signature over canonical artifact payload
 }
 
@@ -46,12 +74,14 @@ export interface GovernancePredicateResults {
   fresh: boolean;
   integrityValid: boolean;
   nonceUnique: boolean;
+  budgetAllows?: boolean;
 }
 
 export interface GovernanceDecision {
   permitted: boolean;
   proposalId: string;
   proposalHash: string;
+  intentCategory?: IntentCategory;
   rejectionReason?: string;
   predicateResults: GovernancePredicateResults;
   invariantViolations: InvariantViolation[];
@@ -85,6 +115,7 @@ export class TrustedIdentityStore {
     'einstein-node',
     'system-admin',
     'runtime_governing_agent',
+    'laura-autonomous-node',
   ]);
 
   public static isValidIdentity(identityId: string): boolean {
@@ -168,6 +199,10 @@ export class SentinelGovernor {
     const timestamp = new Date().toISOString();
     const activePosture = overridePosture || this.currentPosture;
 
+    // Classify intent category if not explicitly provided
+    const isCognitiveAction = COGNITIVE_ACTIONS.includes(proposal.action.toUpperCase());
+    const intentCategory: IntentCategory = proposal.intentCategory || (isCognitiveAction ? 'COGNITIVE_INTENT' : 'EXTERNAL_SIDE_EFFECT_INTENT');
+
     // LAW 2: Disregard any model assertions inside proposal.modelMetadata.callerAssertions
     // Identity must come strictly from trustedIdentityId parameter supplied by trusted system session
     const identityValid = TrustedIdentityStore.isValidIdentity(trustedIdentityId);
@@ -178,19 +213,24 @@ export class SentinelGovernor {
     // Target validity check (must be non-empty string)
     const targetValid = typeof proposal.target === 'string' && proposal.target.trim().length > 0;
 
-    // Posture check: STONEWALL blocks all durable mutations/actions except safe reads
-    const safeReadActions = ['READ_STATE', 'OBSERVE', 'PREDICT', 'HEALTH_CHECK', 'LOG', 'GET_MEMORIES'];
+    // Posture check: STONEWALL blocks state mutations and external side effects except safe reads
+    const safeReadActions = ['READ_STATE', 'OBSERVE', 'PREDICT', 'HEALTH_CHECK', 'LOG', 'GET_MEMORIES', 'EXTERNAL_RETRIEVAL'];
     const postureAllows = activePosture !== 'STONEWALL' || safeReadActions.includes(proposal.action.toUpperCase());
 
-    // Policy check: 25 Constitutional Invariants evaluation
+    // Policy check: 26 Constitutional Invariants evaluation
     const invariantEval = ConstitutionalGovernanceEngine.evaluateInvariants({
       proposedAction: proposal.action,
-      authorityLevel: 0.5,
+      authorityLevel: intentCategory === 'COGNITIVE_INTENT' ? 0.3 : 0.8,
       posture: activePosture,
-      hasCapabilityToken: true,
+      hasCapabilityToken: intentCategory === 'COGNITIVE_INTENT' || !!proposal.payload?.humanProofToken,
       textPayload: typeof proposal.payload === 'string' ? proposal.payload : JSON.stringify(proposal.payload || {}),
+      intentCategory,
     });
     const policyAllows = invariantEval.passed;
+
+    // Resource budget check for COGNITIVE_INTENT
+    const budgetCheck = reasoningBudgetEngine.checkCognitiveBudget(proposal.proposalId);
+    const budgetAllows = budgetCheck.allowed;
 
     // Evidence satisfied check: substrate Merkle DAG status
     const evidenceSatisfied = !!this.substrate;
@@ -213,6 +253,7 @@ export class SentinelGovernor {
       fresh,
       integrityValid,
       nonceUnique,
+      budgetAllows,
     };
 
     const permitted =
@@ -222,7 +263,8 @@ export class SentinelGovernor {
       policyAllows &&
       postureAllows &&
       evidenceSatisfied &&
-      targetValid;
+      targetValid &&
+      budgetAllows;
 
     let rejectionReason: string | undefined;
     if (!permitted) {
@@ -231,11 +273,12 @@ export class SentinelGovernor {
       else if (!targetValid) rejectionReason = `DENY: Target binding is invalid or missing`;
       else if (!postureAllows) rejectionReason = `DENY: Current posture '${activePosture}' forbids action '${proposal.action}'`;
       else if (!policyAllows) rejectionReason = `DENY: Constitutional invariant violation: ${invariantEval.violations.map(v => v.name).join(', ')}`;
+      else if (!budgetAllows) rejectionReason = `DENY: Resource budget limit reached: ${budgetCheck.reason || 'Cognitive rate limit'} (${budgetCheck.action}: This can wait)`;
       else if (!evidenceSatisfied) rejectionReason = `DENY: Evidence substrate unavailable`;
       else rejectionReason = `DENY: Conjunctive security predicate check failed`;
     }
 
-    const proposalCanonicalStr = `${proposal.proposalId}:${proposal.action}:${proposal.target}:${SentinelGovernor.computePayloadHash(proposal.payload)}`;
+    const proposalCanonicalStr = `${proposal.proposalId}:${intentCategory}:${proposal.action}:${proposal.target}:${SentinelGovernor.computePayloadHash(proposal.payload)}`;
     const proposalHash = crypto.createHash('sha256').update(proposalCanonicalStr).digest('hex');
 
     let authorizationArtifact: AuthorizationArtifact | undefined = undefined;
@@ -248,7 +291,8 @@ export class SentinelGovernor {
       const nonce = `NONCE-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
       const payloadHash = SentinelGovernor.computePayloadHash(proposal.payload);
 
-      const signablePayload = `${artifactId}|${issuanceTime}|${expirationTime}|${nonce}|${trustedIdentityId}|${proposal.action}|${proposal.target}|${payloadHash}|${capabilityId}|${activePosture}`;
+      const baseSignable = `${artifactId}|${issuanceTime}|${expirationTime}|${nonce}|${trustedIdentityId}|${proposal.action}|${proposal.target}|${payloadHash}|${capabilityId}|${activePosture}`;
+      const signablePayload = intentCategory ? `${baseSignable}|${intentCategory}` : baseSignable;
       const signature = crypto.createHmac('sha256', this.hmacKey).update(signablePayload).digest('hex');
 
       authorizationArtifact = {
@@ -262,12 +306,18 @@ export class SentinelGovernor {
         payloadHash,
         capabilityId,
         postureAtIssuance: activePosture,
+        intentCategory,
         signature,
       };
+
+      // Record cognitive cycle
+      if (intentCategory === 'COGNITIVE_INTENT') {
+        reasoningBudgetEngine.recordCognitiveCycle();
+      }
     }
 
     // LAW 8: Record decision (both EXECUTED/PERMITTED and REJECTED) in Merkle Evidence DAG
-    const decisionLogContent = `GOVERNANCE_DECISION:${permitted ? 'PERMITTED' : 'REJECTED'}:${proposal.action}:${proposal.target}:${proposalHash}:${rejectionReason || 'PERMITTED'}`;
+    const decisionLogContent = `GOVERNANCE_DECISION:${intentCategory}:${permitted ? 'PERMITTED' : 'REJECTED'}:${proposal.action}:${proposal.target}:${proposalHash}:${rejectionReason || 'PERMITTED'}`;
     const merkleRes = this.substrate.recordObservationAndVerify(
       decisionLogContent,
       permitted ? 0.95 : 0.20,
@@ -278,6 +328,7 @@ export class SentinelGovernor {
       permitted,
       proposalId: proposal.proposalId,
       proposalHash,
+      intentCategory,
       rejectionReason,
       predicateResults,
       invariantViolations: invariantEval.violations,
@@ -288,7 +339,8 @@ export class SentinelGovernor {
   }
 
   public verifyArtifactSignature(artifact: AuthorizationArtifact): boolean {
-    const signablePayload = `${artifact.artifactId}|${artifact.issuanceTime}|${artifact.expirationTime}|${artifact.nonce}|${artifact.identityId}|${artifact.action}|${artifact.target}|${artifact.payloadHash}|${artifact.capabilityId}|${artifact.postureAtIssuance}`;
+    const basePayload = `${artifact.artifactId}|${artifact.issuanceTime}|${artifact.expirationTime}|${artifact.nonce}|${artifact.identityId}|${artifact.action}|${artifact.target}|${artifact.payloadHash}|${artifact.capabilityId}|${artifact.postureAtIssuance}`;
+    const signablePayload = artifact.intentCategory ? `${basePayload}|${artifact.intentCategory}` : basePayload;
     const expectedSig = crypto.createHmac('sha256', this.hmacKey).update(signablePayload).digest('hex');
     return crypto.timingSafeEqual(Buffer.from(artifact.signature), Buffer.from(expectedSig));
   }

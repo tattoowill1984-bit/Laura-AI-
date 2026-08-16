@@ -61,6 +61,15 @@ export interface IntentClassificationResult {
   reason?: string;
 }
 
+export interface CognitiveTelemetryRecord {
+  wasRetrievalNecessary: boolean;
+  queryRelevanceScore: number;
+  sourceQualityScore: number;
+  evidenceConflicted: boolean;
+  confidenceDelta: number;
+  uncertaintyReduced: boolean;
+}
+
 export interface ToolExecutionRecord {
   executionId: string;
   timestamp: string;
@@ -69,6 +78,8 @@ export interface ToolExecutionRecord {
   queryOrTarget: string;
   resultSummary?: string;
   failureReason?: string;
+  intentCategory?: 'COGNITIVE_INTENT' | 'EXTERNAL_SIDE_EFFECT_INTENT';
+  cognitiveTelemetry?: CognitiveTelemetryRecord;
 }
 
 export class ExternalRetrievalGateway {
@@ -277,6 +288,7 @@ export class ExternalRetrievalGateway {
           target: req.query,
           payload: { query: req.query },
           reasoning: req.purpose || 'External retrieval request',
+          intentCategory: 'COGNITIVE_INTENT',
           modelMetadata: { provider: 'externalRetrievalGateway' },
         };
 

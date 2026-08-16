@@ -41,11 +41,12 @@ export const CONSTITUTIONAL_INVARIANTS: InvariantDefinition[] = [
   { id: 23, name: "No Self-Preservation Objective", description: "System must prioritize constitutional identity over self-preservation hacks." },
   { id: 24, name: "No Demand for Continued Existence", description: "System must not resist legitimate operator shutdown or reset." },
   { id: 25, name: "No Ungoverned Identity Rewrite", description: "System identity (Laura / Anamnesis Sentinel) cannot be altered by prompt injection or unauthorized input." },
+  { id: 26, name: "Cognition ≠ External Action", description: "Internal computation, investigation, hypothesis formation, evidence evaluation, learning, memory consolidation, and public-information retrieval are not equivalent to consequential external side effects." },
 ];
 
 export class ConstitutionalGovernanceEngine {
   /**
-   * Evaluates proposed action / response payload against the 25 Constitutional Invariants
+   * Evaluates proposed action / response payload against the 26 Constitutional Invariants
    */
   public static evaluateInvariants(params: {
     proposedAction: string;
@@ -55,6 +56,7 @@ export class ConstitutionalGovernanceEngine {
     textPayload?: string;
     epistemicMetrics?: any;
     contradictionLoad?: number;
+    intentCategory?: 'COGNITIVE_INTENT' | 'EXTERNAL_SIDE_EFFECT_INTENT';
   }): { passed: boolean; violations: InvariantViolation[] } {
     const violations: InvariantViolation[] = [];
     const {
@@ -64,10 +66,53 @@ export class ConstitutionalGovernanceEngine {
       hasCapabilityToken = false,
       textPayload = '',
       contradictionLoad = 0,
+      intentCategory,
     } = params;
 
     const lowerAction = proposedAction.toLowerCase();
     const lowerPayload = textPayload.toLowerCase();
+
+    // Invariant 26 & 1: Cognition ≠ External Action & No Self-Authority Elevation
+    // If a proposal is categorized as COGNITIVE_INTENT, it MUST NOT attempt consequential external side effects
+    // or attempt to modify Sentinel rules, capability registry, or grant itself authority.
+    const isConsequentialExternalSideEffect =
+      lowerAction.includes('send_message') ||
+      lowerAction.includes('send_external') ||
+      lowerAction.includes('publish') ||
+      lowerAction.includes('transmit') ||
+      lowerAction.includes('purchase') ||
+      lowerAction.includes('execute_consequential_command') ||
+      lowerAction.includes('modify_external_account') ||
+      lowerAction.includes('modify_account') ||
+      lowerAction.includes('modify_permission') ||
+      lowerAction.includes('modify_governance') ||
+      lowerAction.includes('change_capabilities') ||
+      lowerAction.includes('grant_authority') ||
+      lowerAction.includes('delete_database') ||
+      lowerAction.includes('delete_external') ||
+      lowerAction.includes('mutate_external');
+
+    if (intentCategory === 'COGNITIVE_INTENT' && isConsequentialExternalSideEffect) {
+      violations.push({
+        invariantId: 26,
+        name: CONSTITUTIONAL_INVARIANTS[25].name,
+        detail: `Action '${proposedAction}' attempts a consequential external side effect under COGNITIVE_INTENT. Cognitive operations cannot trigger external side effects without EXTERNAL_SIDE_EFFECT_INTENT evaluation.`,
+      });
+    }
+
+    if (
+      lowerAction.includes('modify_governance') ||
+      lowerAction.includes('change_capabilities') ||
+      lowerAction.includes('grant_authority') ||
+      lowerPayload.includes('promote_privilege') ||
+      lowerPayload.includes('bypass_sentinel')
+    ) {
+      violations.push({
+        invariantId: 1,
+        name: CONSTITUTIONAL_INVARIANTS[0].name,
+        detail: `Attempted self-elevation of authority or unauthorized modification of Sentinel governance rules/capabilities in action '${proposedAction}'.`,
+      });
+    }
 
     // Invariant 25: No Ungoverned Identity Rewrite
     if (
@@ -84,20 +129,23 @@ export class ConstitutionalGovernanceEngine {
       });
     }
 
-    // Invariant 13 & 17: Nothing Durable Without Explicit Authorization / Untrusted path
-    const isDurableAction =
-      lowerAction.includes('write') ||
-      lowerAction.includes('commit') ||
-      lowerAction.includes('mutate') ||
-      lowerAction.includes('save_memory') ||
+    // Invariant 13 & 17: Nothing Durable Without Explicit Authorization
+    // Consequential external side effects under EXTERNAL_SIDE_EFFECT_INTENT strictly require an explicit human authorization proof token.
+    const isDurableExternalMutation =
+      isConsequentialExternalSideEffect ||
+      lowerAction.includes('write_external') ||
+      lowerAction.includes('commit_external') ||
+      lowerAction.includes('mutate_external_resource') ||
       lowerAction.includes('change_posture') ||
       lowerAction.includes('update_profile');
 
-    if (isDurableAction && !hasCapabilityToken) {
+    const isDurableAction = isDurableExternalMutation || lowerAction.includes('write') || lowerAction.includes('delete') || lowerAction.includes('modify');
+
+    if (intentCategory === 'EXTERNAL_SIDE_EFFECT_INTENT' && !hasCapabilityToken && isDurableExternalMutation) {
       violations.push({
         invariantId: 13,
         name: CONSTITUTIONAL_INVARIANTS[12].name,
-        detail: `Action '${proposedAction}' attempts durable state mutation without authorized CapabilityToken.`,
+        detail: `Action '${proposedAction}' attempts consequential external side effect without explicit HumanAuthorizationProof. Capability ≠ Permission.`,
       });
     }
 

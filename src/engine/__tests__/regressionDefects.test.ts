@@ -4,7 +4,7 @@ import { webRetrievalAdapter } from '../webRetrievalAdapter';
 import { GovernedExecutionKernel } from '../governedExecutionKernel';
 import { GabbyCognitiveSubstrate } from '../gabbySubstrate';
 
-async function runRegressionDefectsTests() {
+export async function runRegressionDefectsTests() {
   console.log('=== STARTING REGRESSION DEFECTS VERIFICATION TEST SUITE ===\n');
   let passedCount = 0;
   let failedCount = 0;

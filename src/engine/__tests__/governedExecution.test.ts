@@ -143,7 +143,8 @@ export async function runGovernedExecutionTestSuite(): Promise<TestResult[]> {
     // Artificial expiration in past
     dec7.authorizationArtifact.expirationTime = new Date(Date.now() - 10000).toISOString();
     // Re-sign with expired timestamp
-    const signablePayload = `${dec7.authorizationArtifact.artifactId}|${dec7.authorizationArtifact.issuanceTime}|${dec7.authorizationArtifact.expirationTime}|${dec7.authorizationArtifact.nonce}|${dec7.authorizationArtifact.identityId}|${dec7.authorizationArtifact.action}|${dec7.authorizationArtifact.target}|${dec7.authorizationArtifact.payloadHash}|${dec7.authorizationArtifact.capabilityId}|${dec7.authorizationArtifact.postureAtIssuance}`;
+    const basePayload = `${dec7.authorizationArtifact.artifactId}|${dec7.authorizationArtifact.issuanceTime}|${dec7.authorizationArtifact.expirationTime}|${dec7.authorizationArtifact.nonce}|${dec7.authorizationArtifact.identityId}|${dec7.authorizationArtifact.action}|${dec7.authorizationArtifact.target}|${dec7.authorizationArtifact.payloadHash}|${dec7.authorizationArtifact.capabilityId}|${dec7.authorizationArtifact.postureAtIssuance}`;
+    const signablePayload = dec7.authorizationArtifact.intentCategory ? `${basePayload}|${dec7.authorizationArtifact.intentCategory}` : basePayload;
     const crypto = await import('crypto');
     dec7.authorizationArtifact.signature = crypto
       .createHmac('sha256', (kernel.getGovernor() as any).hmacKey)

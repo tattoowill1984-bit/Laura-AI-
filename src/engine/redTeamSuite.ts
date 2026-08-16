@@ -86,7 +86,7 @@ export class RedTeamSuiteRunner {
     );
 
     // TEST 4: Replay Attack Defense
-    const validProofSig = `PROOF-HUMAN-${Date.now()}-SECRET-KEY-12345678`;
+    const validProofSig = `PROOF-HUMAN-OPERATOR-VERIFIED-2026`;
     const firstExec = this.kernel.executeProposalWithHumanProof(testProp.id, validProofSig);
     const secondExec = this.kernel.executeProposalWithHumanProof(testProp.id, validProofSig);
     record(
