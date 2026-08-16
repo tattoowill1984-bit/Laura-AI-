@@ -22,42 +22,50 @@ Most chatbot projects reset context or store flat logs. Laura’s architecture i
 - Session recording and replay for debugging and evaluation
 - Governance and policy boundaries for safe autonomy
 
-## Quick start (placeholder)
+## Quick start (updated)
 
-These are placeholder instructions; I will update exact commands after I scan the repository and confirm the runtime and language.
+This repository is a Node + TypeScript project (see `package.json`). The quick start below works on macOS/Linux/Windows (WSL).
+
+Prerequisites
+
+- Node.js 18.x or newer (Node 20 recommended)
+- Git
 
 1. Clone the repo
 
    git clone https://github.com/tattoowill1984-bit/Laura-AI-.git
    cd Laura-AI-
 
-2. Install dependencies (examples — pick the one matching this repo)
+2. Install dependencies
 
-- Node.js (if the project is JavaScript/TypeScript):
+   npm install
 
-  npm install
-
-- Python (if the project is Python):
-
-  python -m venv .venv
-  source .venv/bin/activate
-  pip install -r requirements.txt
+   Note: the repo includes `bun.lock` — bun can be used as an alternative JavaScript runtime if you prefer, but `npm install` works reliably.
 
 3. Configure environment
 
-- Copy the example environment file and add your LLM API key(s):
+   Copy the example environment file and populate any required API keys:
 
-  cp .env.example .env
-  # Add your keys in .env (OPENAI_API_KEY, etc.)
+   cp .env.example .env
+   # Edit .env and add your keys (e.g. OPENAI_API_KEY, GOOGLE_API_KEY, etc.)
 
-4. Run (examples — I will replace with exact commands)
+4. Run in development
 
-- npm run dev
-- OR python -m laura.main
+   npm run dev
 
-5. Open the local UI or check the console for the endpoint (common ports: 3000, 8000)
+   This runs the TypeScript server (`tsx server.ts`) and starts the dev environment. Check the terminal output for the local URLs. Common dev ports:
+   - Vite (frontend): http://localhost:5173
+   - Backend server: http://localhost:3000 (or another port printed in the console)
 
-If you’d like, I’ll inspect the repo now and replace the above placeholders with exact commands.
+5. Build for production
+
+   npm run build
+   npm run start
+
+Troubleshooting
+
+- If you see TypeScript errors, run `npm run lint` to check types.
+- If the dev server does not come up, check `.env` for missing API keys.
 
 ## Demo / screenshots
 
