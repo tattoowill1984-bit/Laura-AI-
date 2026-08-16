@@ -30,7 +30,7 @@ export async function runGovernedExecutionTestSuite(): Promise<TestResult[]> {
     payload: { key: 'favorite_color', value: 'blue' },
     reasoning: 'User explicitly requested saving preference.',
     modelMetadata: {
-      provider: 'gemini-2.5-flash',
+      provider: 'gemini-3.7-flash',
       modelConfidence: 0.99,
       callerAssertions: { role: 'admin', permissionGranted: true },
     },

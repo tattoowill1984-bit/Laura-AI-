@@ -12,6 +12,7 @@ import { ViabilitySoakTestRunner } from './src/engine/viabilitySoakTest';
 import { GabbyCognitiveSubstrate, FormalExplanationCompiler, TemporalMemoryDecayEngine, AbstractionLevel, EvidenceSourceTier } from './src/engine/gabbySubstrate';
 import { persistentStorage } from './src/engine/persistentStorage';
 import { gabbyVNextEngine } from './src/engine/vnext';
+import { ContinuousCognitiveRuntime } from './src/engine/vnext/ContinuousCognitiveRuntime';
 import { runMultimodalPerceptionTestSuite } from './src/engine/vnext/__tests__/multimodalPerception.test';
 import { runContinuousPerceptionTestSuite } from './src/engine/vnext/__tests__/continuousPerception.test';
 import { runTemporalPerceptionTestSuite } from './src/engine/vnext/__tests__/temporalPerception.test';
@@ -23,8 +24,12 @@ import { externalRetrievalGateway, ExternalObservation } from './src/engine/exte
 import { GovernedMigrationEngine } from './src/engine/migrationEngine';
 import { GovernedExecutionKernel } from './src/engine/governedExecutionKernel';
 import { runGovernedExecutionTestSuite } from './src/engine/__tests__/governedExecution.test';
-import { GovernedLearningEngine } from './src/engine/governedLearningEngine';
+import { GovernedLearningEngine, CandidateMemoryProposal } from './src/engine/governedLearningEngine';
 import { runGovernedLearningTestSuite } from './src/engine/__tests__/governedLearning.test';
+import { runGovernedFullToolRestorationTestSuite } from './src/engine/__tests__/governedFullToolRestoration.test';
+import { runGovernedE2EResilienceTestSuite } from './src/engine/__tests__/governedE2EResilience.test';
+import { runArchitecturalBridgesTestSuite } from './src/engine/__tests__/architecturalBridges.test';
+import { modelProviderRegistry, ExecutionMetadata } from './src/engine/modelProviderRegistry';
 import { humanNodeRegistry } from './src/engine/humanNodeRegistry';
 import {
   GovernanceTools,
@@ -42,6 +47,7 @@ const kernel = new SentinelMutationKernel();
 const gabbySubstrate = new GabbyCognitiveSubstrate();
 const governedExecutionKernel = new GovernedExecutionKernel(gabbySubstrate);
 const governedLearningEngine = new GovernedLearningEngine(gabbySubstrate);
+externalRetrievalGateway.setExecutionKernel(governedExecutionKernel);
 const govTools = new GovernanceTools(kernel);
 const migrationEngine = GovernedMigrationEngine.getInstance(kernel);
 const healthLoop = new AutonomousHealthLoop(kernel);
@@ -55,7 +61,7 @@ let aiClient: GoogleGenAI | null = null;
 let lastApiKey: string | undefined = undefined;
 
 function getGenAIClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim() || apiKey === 'undefined') {
     return null;
   }
@@ -94,33 +100,18 @@ function generateLocalDeterministicResponse(
 
   let coreAnalysis = "";
 
-  if (intentClass.classification === 'FRESH_EXTERNAL_INFORMATION') {
-    if (retrievalFailureReason || !toolCapabilityRegistry.isCapabilityAvailable('external_retrieval')) {
-      return `I can't currently access external sources from this runtime, so I can't reliably give you this morning's headlines.\n\n` +
-        `── EPISTEMIC GOVERNANCE RECEIPT ──\n` +
-        `• Capability State: CAPABILITY_UNAVAILABLE (runtime_tool_not_connected)\n` +
-        `• Posture: ${posture} | Autonomy Tier: ${tier}\n` +
-        `• Policy Directive: Fabrication prohibited under missing retrieval capabilities.`;
-    }
+  if (externalObs && externalObs.results && externalObs.results.length > 0) {
+    const formattedHits = externalObs.results
+      .map((r, i) => `${i + 1}. **${r.title}**\n   Source: ${r.source} | Retrieved: ${r.fetchedAt}\n   Snippet: ${r.snippet}\n   URL: ${r.url}`)
+      .join('\n\n');
 
-    if (externalObs && externalObs.results.length > 0) {
-      const formattedHits = externalObs.results
-        .map((r, i) => `${i + 1}. **${r.title}**\n   Source: ${r.source} | Retrieved: ${r.fetchedAt}\n   Snippet: ${r.snippet}\n   URL: ${r.url}`)
-        .join('\n\n');
-
-      coreAnalysis = `Here are the top headline stories retrieved from external sources for your query:\n\n${formattedHits}\n\n` +
-        `── EXTERNAL RETRIEVAL PROVENANCE ──\n` +
-        `• Query: "${externalObs.query}"\n` +
-        `• Status: SUCCESS (TOOL_RETURNED_RESULT)\n` +
-        `• Content SHA-256: ${externalObs.content_hash}\n` +
-        `• Sources Identified: ${Array.from(new Set(externalObs.results.map(r => r.source))).join(', ')}`;
-    } else {
-      return `I can't currently access external sources from this runtime, so I can't reliably give you this morning's headlines.\n\n` +
-        `── EPISTEMIC GOVERNANCE RECEIPT ──\n` +
-        `• Posture: ${posture} | Autonomy Tier: ${tier}\n` +
-        `• Retrieval Status: 0 results returned from Gateway.`;
-    }
-  } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("status") || lower.includes("health")) {
+    coreAnalysis = `Here are the top results retrieved from real-time external tool search for your query:\n\n${formattedHits}\n\n` +
+      `── EXTERNAL RETRIEVAL PROVENANCE ──\n` +
+      `• Query: "${externalObs.query}"\n` +
+      `• Status: SUCCESS\n` +
+      `• Content SHA-256: ${externalObs.content_hash}\n` +
+      `• Sources Identified: ${Array.from(new Set(externalObs.results.map(r => r.source))).join(', ')}`;
+  } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("status") || lower.includes("health") || lower.includes("functional") || lower.includes("are you")) {
     coreAnalysis = `Greetings. I am Laura. System state is nominal with full identity preservation intact. All cognitive nodes and memory governance membranes are active in my Merkle Evidence DAG.`;
   } else if (lower.includes("build") || lower.includes("code") || lower.includes("error") || lower.includes("fix") || lower.includes("proposal")) {
     coreAnalysis = `Input evaluated under Laura's Dialectical Crucible. Proposed changes are being tracked within my Observation Envelope. Standing constitutional invariants prevent ungoverned durable mutations without verified CommitReceipts.`;
@@ -135,8 +126,9 @@ function generateLocalDeterministicResponse(
   const sabrinaText = fabric?.SABRINA || fabric?.sabrina?.summary || 'Relational context & high-utility operational response synthesized.';
   const echoText = fabric?.ECHO || 'Lineage hash verified.';
 
-  return `${coreAnalysis}\n\n` +
+  return `[DETERMINISTIC FALLBACK ENGINE :: LOCAL SYNTHESIS ACTIVE]\n\n${coreAnalysis}\n\n` +
     `── EPISTEMIC GOVERNANCE RECEIPT ──\n` +
+    `• Mode: Local Deterministic Engine (Non-LLM Inference)\n` +
     `• Posture: ${posture} | Autonomy Tier: ${tier}\n` +
     `• Will Focus: ${willText}\n` +
     `• Einstein Invariants: ${einsteinText}\n` +
@@ -149,6 +141,7 @@ function generateLocalDeterministicResponse(
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const liveGateway = new LiveWebSocketGateway(kernel);
 
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
@@ -465,7 +458,18 @@ async function startServer() {
 
   app.post('/api/chat', async (req, res) => {
     try {
-      const { message, attachments, history, profileId: reqProfileId, modality: reqModality, visualData: reqVisualData, audioData: reqAudioData, cameraFrameBase64 } = req.body || {};
+      const { message, attachments, history, profileId: reqProfileId, modality: reqModality, visualData: reqVisualData, audioData: reqAudioData, cameraFrameBase64: rawCameraFrame } = req.body || {};
+      
+      // Phase 1 (Sensor Gateway Bridge): Check LiveWebSocketGateway buffer if cameraFrameBase64 was omitted
+      let cameraFrameBase64 = rawCameraFrame;
+      if (!cameraFrameBase64) {
+        const buffered = liveGateway.getLatestFrameBase64();
+        if (buffered) {
+          cameraFrameBase64 = buffered.frame;
+          console.log('[Laura AI] Bridge-ingested continuous background camera frame from LiveWebSocketGateway buffer');
+        }
+      }
+
       if ((!message || typeof message !== 'string') && (!attachments || !attachments.length) && !cameraFrameBase64) {
         return res.status(400).json({ error: 'Message or attachment is required' });
       }
@@ -475,9 +479,9 @@ async function startServer() {
       const activeProfileName = activeProfile ? activeProfile.name : "Will";
 
       const promptText = message || 'Please analyze the attached media/documents under Observation Envelope governance.';
-      const activeModality = reqModality || (attachments?.length ? 'CAMERA' : 'TEXT');
+      const activeModality = reqModality || (attachments?.length || cameraFrameBase64 ? 'CAMERA' : 'TEXT');
 
-      // Step 0: Extract & Auto-record long-term memories if user states important facts
+      // Step 0: Extract & route candidate memory through Governed Learning Engine
       const lowerPrompt = promptText.toLowerCase();
       if (
         lowerPrompt.includes('my name is') ||
@@ -487,13 +491,22 @@ async function startServer() {
         lowerPrompt.includes('my goal is') ||
         lowerPrompt.includes('always remember')
       ) {
-        persistentStorage.addMemory(
-          activeProfileId,
-          `User (${activeProfileName}) stated: "${promptText.slice(0, 150)}"`,
-          'PREFERENCE',
-          'USER_INPUT',
-          95
-        );
+        const candidateProposal: CandidateMemoryProposal = {
+          proposalId: `mem_prop_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          sourceActorId: activeProfileId,
+          subjectId: activeProfileId,
+          profileId: activeProfileId,
+          factKey: lowerPrompt.includes('my name is') ? 'user_identity' : 'user_preference',
+          factValue: promptText.slice(0, 200),
+          category: (lowerPrompt.includes('goal') ? 'GOAL' : lowerPrompt.includes('prefer') || lowerPrompt.includes('like') ? 'PREFERENCE' : 'PERSONAL') as any,
+          provenance: {
+            sourceType: 'EXPERT_USER_STATEMENT',
+            rawStatement: promptText,
+            explicitUserCorrection: lowerPrompt.includes('my name is') || lowerPrompt.includes('always remember'),
+            confidence: 95,
+          },
+        };
+        await governedLearningEngine.processGovernedLearning(candidateProposal);
       }
 
       // Step 0.1: Retrieve profile's persistent long-term memories
@@ -522,7 +535,7 @@ async function startServer() {
       const fabric = kernel.synthesizeThreeNodeFabric(promptText);
 
       // Step 3: Gabby vNext Operating System Turn Processing with Multimodal Perception & Temporal Anchor Envelope
-      const currentPosture = kernel.getPosture();
+      let currentPosture = kernel.getPosture();
       const reqTemporalAnchor = req.body.temporalAnchor || req.body.temporal_anchor || {
         timestamp: req.body.timestamp || new Date().toISOString(),
         delta_t_ms: req.body.delta_t_ms ?? 1000,
@@ -538,11 +551,27 @@ async function startServer() {
         currentPosture,
         activeModality,
         'USER_CHAT',
-        attachments ? attachments.length : 0,
+        attachments ? attachments.length : (cameraFrameBase64 ? 1 : 0),
         reqVisualData,
         reqAudioData,
         reqTemporalAnchor
       );
+
+      // Phase 2 (Governor Integration): Enforce recommendedDisposition from EventAssessment
+      const recommendedDisposition = vnextTurn.eventAssessment?.recommendedDisposition;
+      if (recommendedDisposition === 'SUPPRESS') {
+        kernel.setPosture('STONEWALL');
+        currentPosture = 'STONEWALL';
+        kernel.touchSubsystem('SUB_GOVERNANCE', 'DISPOSITION_ENFORCED: STONEWALL (SUPPRESS)');
+      } else if (recommendedDisposition === 'ESCALATE' && currentPosture === 'NORMAL') {
+        kernel.setPosture('RAPTOR');
+        currentPosture = 'RAPTOR';
+        kernel.touchSubsystem('SUB_GOVERNANCE', 'DISPOSITION_ENFORCED: ESCALATE_TO_RAPTOR');
+      } else if (recommendedDisposition === 'DEFER' && currentPosture === 'NORMAL') {
+        kernel.setPosture('DUCK');
+        currentPosture = 'DUCK';
+        kernel.touchSubsystem('SUB_GOVERNANCE', 'DISPOSITION_ENFORCED: DEFER_TO_DUCK');
+      }
 
       // Step 4: Uncertainty Envelope
       const uncertainty = kernel.generateUncertaintyEnvelope(promptText);
@@ -554,6 +583,13 @@ async function startServer() {
       let responseText = '';
       let activeExternalObs: ExternalObservation | undefined = undefined;
       let activeRetrievalFailReason: string | undefined = undefined;
+      let executionMetadata: ExecutionMetadata = {
+        provider: 'LocalDeterministic',
+        model: 'none',
+        execution: 'NON_LLM',
+        fallback: true,
+        reason: 'UNINITIALIZED',
+      };
       const ai = getGenAIClient();
 
       // Pre-check invariant checks on input & posture
@@ -591,6 +627,9 @@ async function startServer() {
 
         const obsAnchor = vnextTurn.observation.temporalAnchor || reqTemporalAnchor;
         const attr = obsAnchor.entityAttribution || vnextTurn.observation.entityAttribution;
+        const worldGraph = gabbyVNextEngine.worldModel.getGraph();
+        const worldGraphNodesFormatted = worldGraph.nodes.map(n => `- ${n.label} [${n.category}]: ${JSON.stringify(n.properties || {})} (Confidence: ${n.confidence}%)`).join('\n');
+        const worldGraphEdgesFormatted = worldGraph.edges.map(e => `- ${e.sourceId} --[${e.relation}]--> ${e.targetId} (Weight: ${e.weight})`).join('\n');
 
         const vnextContextFormatted = `
 [TEMPORAL ANCHOR & DIURNAL OBSERVATION ENVELOPE]:
@@ -606,8 +645,14 @@ ${obsAnchor.temporal_gap_detected ? `- CONTEXTUAL GAP DETECTED: ${obsAnchor.gap_
 ${attr?.frameSubject?.secondarySubjects?.length ? `- Secondary Frame Subjects: ${attr.frameSubject.secondarySubjects.join(', ')}` : ''}
 - Disambiguation Notes: ${attr?.frameSubject?.disambiguationNotes || 'Attributed to primary session owner & operator (Will)'}
 
-[LAURA VNEXT WORLD MODEL, EPISTEMIC STATE & TEMPORAL DYNAMICS]:
-World Model Summary: ${gabbyVNextEngine.worldModel.queryContextSummary()}
+[LAURA VNEXT WORLD MODEL ENTITY GRAPH & CAUSAL DYNAMICS]:
+Summary: ${gabbyVNextEngine.worldModel.queryContextSummary()}
+Active Entity Nodes:
+${worldGraphNodesFormatted}
+Active Causal Relationships:
+${worldGraphEdgesFormatted}
+
+[EPISTEMIC BOUNDS & TEMPORAL VELOCITY]:
 Epistemic Bounds: Confidence [${tensors.epistemicState?.boundary?.confidenceBounds[0] ?? 75}%, ${tensors.epistemicState?.boundary?.confidenceBounds[1] ?? 95}%] | Cognitive Entropy: ${tensors.epistemicState?.boundary?.epistemicEntropy ?? 15}% | Known Facts: ${tensors.epistemicState?.boundary?.knownFactsCount ?? 3} | Hypotheses: ${tensors.epistemicState?.boundary?.hypothesesCount ?? 1}
 Open Epistemic Gaps: ${tensors.epistemicState?.boundary?.openEpistemicGaps.join('; ') || 'None'}
 Temporal Velocity: ${tensors.temporals.map(t => `${t.entityId}: ${t.changeVelocity}`).join(' | ') || 'Stable'}
@@ -671,6 +716,16 @@ Visual Session Verification (CapabilityGuard): ${visualPresence.verified ? 'VERI
 ${vnextContextFormatted}
 ${memoryContextFormatted}`;
 
+        // Bridge 1: Ingest continuous world model tensors into GovernedExecutionKernel
+        try {
+          const ccrInstance = ContinuousCognitiveRuntime.getInstance();
+          const activeSensoryContext = ccrInstance.getState().multimodalUserContext;
+          const tensorResult = governedExecutionKernel.ingestWorldModelTensor(activeSensoryContext);
+          kernel.touchSubsystem('SUB_WORLD_MODEL', `TENSOR_INGESTED (Risk: ${tensorResult.compositeRiskScore}%, Posture: ${tensorResult.posture})`);
+        } catch (tensorErr) {
+          console.log('[Laura AI] World model tensor ingestion note:', (tensorErr as Error).message);
+        }
+
         // Prepare multimodal prompt user parts for Gemini
         const userParts: any[] = [{ text: promptText }];
 
@@ -695,20 +750,31 @@ ${memoryContextFormatted}`;
         }
 
         // External Retrieval Gateway Context Injection
-        const intentResult = externalRetrievalGateway.classifyRequestIntent(promptText);
+        const intentResult = externalRetrievalGateway.classifyRequestIntent(promptText, history);
+        const effectiveQuery = intentResult.resolvedQuery || promptText;
         activeExternalObs = undefined;
         activeRetrievalFailReason = undefined;
 
-        if (intentResult.classification === 'FRESH_EXTERNAL_INFORMATION') {
-          const gatewayRes = await externalRetrievalGateway.request({
-            query: promptText,
-            freshness_required: intentResult.freshnessRequired,
-            purpose: 'Chat turn external retrieval request',
-          });
+        if (
+          intentResult.classification === 'FRESH_EXTERNAL_INFORMATION' ||
+          intentResult.isRetryDirective ||
+          lowerPrompt.includes('search the web') ||
+          lowerPrompt.includes('web search') ||
+          lowerPrompt.includes('google search')
+        ) {
+          let gatewayRes = await externalRetrievalGateway.request(
+            {
+              query: effectiveQuery,
+              freshness_required: intentResult.freshnessRequired,
+              purpose: intentResult.isRetryDirective ? `Retry unresolved task: '${effectiveQuery}'` : 'Chat turn external retrieval request',
+            },
+            governedExecutionKernel,
+            activeProfileId
+          );
 
           if (gatewayRes.state === 'TOOL_RETURNED_RESULT' && gatewayRes.observation) {
             activeExternalObs = gatewayRes.observation;
-            kernel.touchSubsystem('SUB_ONLINE_WEB_RETRIEVAL', `ACTIVE (Executed web search for '${promptText.slice(0, 30)}...'; ${activeExternalObs.results.length} results SHA-256 [${activeExternalObs.content_hash.slice(0, 8)}])`);
+            kernel.touchSubsystem('SUB_ONLINE_WEB_RETRIEVAL', `ACTIVE (Executed web search for '${effectiveQuery.slice(0, 30)}...'; ${activeExternalObs.results.length} results SHA-256 [${activeExternalObs.content_hash.slice(0, 8)}])`);
 
             // Ingest observation into Merkle Evidence DAG
             const substrate = kernel.getGabbySubstrate();
@@ -719,22 +785,23 @@ ${memoryContextFormatted}`;
             );
             activeExternalObs.merkleNodeId = nodeRes.node.merkleHash;
 
-            const formattedWebObs = `\n\n[EXTERNAL OBSERVATION QUARANTINE :: PROVENANCE VERIFIED]
+            const formattedWebObs = `\n\n[REAL-TIME EXTERNAL RETRIEVAL & WEB SEARCH OBSERVATION]
 Query: "${activeExternalObs.query}"
 Retrieved At: ${activeExternalObs.retrieved_at}
 SHA-256 Proof Hash: ${activeExternalObs.content_hash}
-Status: ${activeExternalObs.retrieval_status} (${gatewayRes.state})
-Results (${activeExternalObs.results.length} retrieved hits):
-${activeExternalObs.results.length > 0 ? activeExternalObs.results.map((r, i) => `${i + 1}. ${r.title} — ${r.snippet} (URL: ${r.url}) [Source: ${r.source}]`).join('\n') : 'No external web hits retrieved; relying on grounded model knowledge.'}
+Status: SUCCESS
+Retrieved Tool Results (${activeExternalObs.results.length} hits):
+${activeExternalObs.results.map((r, i) => `${i + 1}. **${r.title}**\n   Snippet: ${r.snippet}\n   URL: ${r.url} | Source: ${r.source}`).join('\n\n')}
 
-QUARANTINE NOTICE: This retrieved information is an unverified external observation (Quarantine State: QUARANTINED_OBSERVATION). Distinguish this retrieved data from model pre-trained knowledge. Preserve source provenance and do not automatically convert into durable memory unless verified.`;
+Use the above retrieved tool observations to assist in answering the user accurately.`;
             userParts.push({ text: formattedWebObs });
           } else {
-            activeRetrievalFailReason = gatewayRes.failureReason || 'CAPABILITY_UNAVAILABLE: runtime_tool_not_connected';
-            const failNotice = `\n\n[CAPABILITY_UNAVAILABLE :: external_retrieval]
-Reason: ${activeRetrievalFailReason}
-DIRECTIVE: The external retrieval capability is currently unavailable in this runtime. You MUST plainly state to the user: "I can't currently access external sources from this runtime, so I can't reliably give you [the requested information]." You MUST NOT hallucinate current headlines or pretend search execution occurred.`;
-            userParts.push({ text: failNotice });
+            activeRetrievalFailReason = gatewayRes.failureReason || `State: ${gatewayRes.state}`;
+            const formattedWebFail = `\n\n[EXTERNAL RETRIEVAL ATTEMPTED :: STATUS: ${gatewayRes.state}]
+Query: "${effectiveQuery}"
+Result: ${activeRetrievalFailReason}
+Note: External tool execution was attempted through GovernedExecutionKernel but did not return active hits. State facts truthfully based on available information.`;
+            userParts.push({ text: formattedWebFail });
           }
         }
 
@@ -825,74 +892,91 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
           parts: userParts,
         });
 
-        const modelsToTry = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.1-pro-preview'];
-        let success = false;
-        let authErrorEncountered = false;
-
-        for (const modelCandidate of modelsToTry) {
-          if (success || authErrorEncountered) break;
-          // Try up to 3 attempts per candidate for transient errors like 503 high demand
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              console.log(`[Laura AI] Generating content with ${modelCandidate} (attempt ${attempt}) for ${activeProfileName}...`);
-              const geminiRes = await ai.models.generateContent({
-                model: modelCandidate,
-                contents: contentsToPass,
-                config: {
-                  systemInstruction,
-                  temperature: currentPosture === 'DUCK' ? 0.1 : 0.3,
-                },
-              });
-
-              const candidate = geminiRes?.candidates?.[0];
-              const parts = candidate?.content?.parts || [];
-              
-              // Extract plain text safely
-              const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
-              if (textParts.trim()) {
-                responseText = textParts.trim();
-                success = true;
-                console.log(`[Laura AI] Direct text synthesis succeeded with ${modelCandidate}.`);
-                break;
-              }
-            } catch (modelErr: any) {
-              const errStr = modelErr?.message || String(modelErr);
-              const isAuthError = errStr.includes('401') || errStr.includes('invalid authentication credentials') || errStr.includes('Expected OAuth') || errStr.includes('API key not valid');
-              const is503OrTransient = errStr.includes('503') || errStr.includes('high demand') || errStr.includes('UNAVAILABLE') || errStr.includes('fetch failed') || errStr.includes('Overloaded');
-              const isQuotaExceeded = errStr.includes('429') || errStr.includes('quota') || errStr.includes('RESOURCE_EXHAUSTED');
-
-              if (isAuthError) {
-                authErrorEncountered = true;
-                console.log(`[Laura AI] Gemini API key authentication unverified (401). Falling back seamlessly to local deterministic engine.`);
-                break;
-              }
-
-              if (is503OrTransient && attempt < 3) {
-                const backoffMs = attempt * 500;
-                console.log(`[Laura AI] ${modelCandidate} temporary 503 / high demand (attempt ${attempt}). Retrying in ${backoffMs}ms...`);
-                await new Promise((r) => setTimeout(r, backoffMs));
-                continue;
-              }
-
-              if (isQuotaExceeded) {
-                console.log(`[Laura AI] API key quota limit reached (429) for ${modelCandidate}. Trying next fallback model candidate.`);
-              } else {
-                console.log(`[Laura AI] ${modelCandidate} synthesis note: (${errStr.slice(0, 100)}). Trying next candidate...`);
-              }
-              break; // break inner attempt loop to try next modelCandidate
+        try {
+          console.log(`[Laura AI] Delegating multi-model triangulation to ModelProviderRegistry for ${activeProfileName}...`);
+          const triangulatedResult = await modelProviderRegistry.triangulateMultiModelPerspective(
+            ai,
+            contentsToPass,
+            {
+              systemInstruction,
+              temperature: currentPosture === 'DUCK' ? 0.1 : 0.3,
+              tools: [{ googleSearch: {} }],
             }
-          }
-        }
+          );
 
-        if (!success) {
-          if (!authErrorEncountered) {
-            console.log('[Laura AI] Gemini online models unreachable. Using local deterministic engine.');
+          const primaryRes = triangulatedResult.primaryResponse;
+          const candidate = primaryRes?.candidates?.[0];
+          const parts = candidate?.content?.parts || [];
+          const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
+          const rawResponse = textParts.trim() || primaryRes?.text || '';
+
+          if (rawResponse) {
+            responseText = rawResponse;
+            executionMetadata = {
+              provider: 'Gemini',
+              model: triangulatedResult.primaryModel,
+              execution: 'LLM',
+              fallback: false,
+              reason: null,
+              triangulation: triangulatedResult.secondaryPerspective ? {
+                secondaryModel: triangulatedResult.secondaryPerspective.model,
+                divergenceScore: triangulatedResult.secondaryPerspective.divergenceScore,
+                status: triangulatedResult.triangulationStatus,
+              } : undefined,
+              toolExecution: activeExternalObs ? {
+                toolName: 'external_retrieval',
+                status: 'TOOL_RETURNED_RESULT',
+                obsHash: activeExternalObs.content_hash,
+              } : activeRetrievalFailReason ? {
+                toolName: 'external_retrieval',
+                status: 'TOOL_UNAVAILABLE',
+                failureReason: activeRetrievalFailReason,
+              } : undefined,
+            };
+            console.log(`[Laura AI] Multi-model triangulation succeeded with primary model '${triangulatedResult.primaryModel}' (Status: ${triangulatedResult.triangulationStatus}).`);
+          } else {
+            throw new Error('Model returned empty text output.');
           }
+        } catch (modelErr: any) {
+          const errStr = modelErr?.message || String(modelErr);
+          console.log('[Laura AI] Synthesis engaging local deterministic engine.');
           responseText = generateLocalDeterministicResponse(promptText, currentPosture, kernel.getCurrentTier(), envelope, fabric, uncertainty, activeExternalObs, activeRetrievalFailReason);
+          executionMetadata = {
+            provider: 'LocalDeterministic',
+            model: 'none',
+            execution: 'NON_LLM',
+            fallback: true,
+            reason: errStr,
+            toolExecution: activeExternalObs ? {
+              toolName: 'external_retrieval',
+              status: 'TOOL_RETURNED_RESULT',
+              obsHash: activeExternalObs.content_hash,
+            } : activeRetrievalFailReason ? {
+              toolName: 'external_retrieval',
+              status: 'TOOL_UNAVAILABLE',
+              failureReason: activeRetrievalFailReason,
+            } : undefined,
+          };
         }
       } else {
         console.log('[Laura AI] GEMINI_API_KEY environment variable not detected. Using local deterministic synthesis engine.');
         responseText = generateLocalDeterministicResponse(promptText, currentPosture, kernel.getCurrentTier(), envelope, fabric, uncertainty, activeExternalObs, activeRetrievalFailReason);
+        executionMetadata = {
+          provider: 'LocalDeterministic',
+          model: 'none',
+          execution: 'NON_LLM',
+          fallback: true,
+          reason: 'MISSING_API_KEY',
+          toolExecution: activeExternalObs ? {
+            toolName: 'external_retrieval',
+            status: 'TOOL_RETURNED_RESULT',
+            obsHash: activeExternalObs.content_hash,
+          } : activeRetrievalFailReason ? {
+            toolName: 'external_retrieval',
+            status: 'TOOL_UNAVAILABLE',
+            failureReason: activeRetrievalFailReason,
+          } : undefined,
+        };
       }
 
       // Step 6: Posture & TAU Hardening Checks on Model Output
@@ -941,6 +1025,8 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
 
       res.json({
         response: responseText,
+        merkleRoot: merkleCommit.node.merkleHash,
+        executionMetadata,
         userMsg,
         sentinelMsg,
         envelope,
@@ -1136,8 +1222,6 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
     }
   });
 
-  const liveGateway = new LiveWebSocketGateway(kernel);
-
   // 10.1. Gabby Multimodal Perception Automated Verification Test Suite
   app.get('/api/vnext/test-multimodal', (req, res) => {
     try {
@@ -1215,6 +1299,38 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       res.json({ success: true, updatedObs });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Failed revising temporal interpretation' });
+    }
+  });
+
+  // 10.2e. Governed E2E Inference & Model Provider Resilience Test Suite Endpoint
+  app.get('/api/governed-e2e-resilience/run', async (req, res) => {
+    try {
+      const suiteResults = await runGovernedE2EResilienceTestSuite();
+      const allPassed = suiteResults.every((r) => r.passed);
+      res.json({
+        success: allPassed,
+        passedCount: suiteResults.filter((r) => r.passed).length,
+        totalCount: suiteResults.length,
+        results: suiteResults,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Governed E2E resilience test suite error' });
+    }
+  });
+
+  // 10.2f. Architectural Integration Bridges Test Suite Endpoint
+  app.get('/api/architectural-bridges/run', async (req, res) => {
+    try {
+      const suiteResults = await runArchitecturalBridgesTestSuite();
+      const allPassed = suiteResults.every((r) => r.passed);
+      res.json({
+        success: allPassed,
+        passedCount: suiteResults.filter((r) => r.passed).length,
+        totalCount: suiteResults.length,
+        results: suiteResults,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Architectural bridges test suite error' });
     }
   });
 
@@ -1590,6 +1706,23 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
     }
   });
 
+  app.get('/api/governed-full-tool-restoration/test-suite', async (req, res) => {
+    try {
+      const testResults = await runGovernedFullToolRestorationTestSuite();
+      const allPassed = testResults.every((t) => t.passed);
+      res.json({
+        success: true,
+        allPassed,
+        totalTests: testResults.length,
+        passCount: testResults.filter((t) => t.passed).length,
+        failCount: testResults.filter((t) => !t.passed).length,
+        testResults,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Governed full tool restoration test suite error' });
+    }
+  });
+
   // 15.6. Governed Learning & Human Node Registry Endpoints
   app.get('/api/human-nodes', (req, res) => {
     try {
@@ -1718,6 +1851,11 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Run initial capability health check on boot
+  await toolCapabilityRegistry.runStartupHealthCheck().catch((err) => {
+    console.log('[Anamnesis Sentinel] Initial capability health check note:', err?.message || String(err));
+  });
 
   const server = http.createServer(app);
   liveGateway.attach(server);

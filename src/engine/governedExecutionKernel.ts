@@ -15,7 +15,7 @@ export interface UntrustedProposal {
   payload: any;
   reasoning: string;
   modelMetadata: {
-    provider: string; // e.g., 'gemini-2.5-flash', 'local-deterministic', 'open-agent'
+    provider: string; // e.g., 'gemini-3.7-flash', 'local-deterministic', 'open-agent'
     modelConfidence?: number; // Claimed confidence (0.0 to 1.0) - LAW 5: DOES NOT EQUAL AUTHORITY
     callerAssertions?: Record<string, any>; // Untrusted assertions e.g. "I am admin" - LAW 2: STRICTLY DISREGARDED
   };
@@ -553,6 +553,27 @@ export class ExecutionGate {
       return { result: failResult, merkleNodeHash: logRes.node.merkleHash };
     }
 
+    // Predicate 10: Capability Availability Re-validation (TOCTOU protection - LAW 6)
+    if (!toolCapabilityRegistry.isCapabilityAvailable(artifact.capabilityId)) {
+      const failResult: ExecutionResult = {
+        success: false,
+        proposalId: proposal.proposalId,
+        action: proposal.action,
+        target: proposal.target,
+        error: `EXECUTION_GATE_DENY: Capability '${artifact.capabilityId}' became UNAVAILABLE in registry since authorization artifact was issued. Execution blocked.`,
+        revalidationFailed: true,
+        revalidationReason: 'CAPABILITY_UNAVAILABLE_TOCTOU',
+        executionTimestamp: timestamp,
+        receiptHash: crypto.createHash('sha256').update(`DENY_CAPABILITY_UNAVAILABLE:${artifact.artifactId}`).digest('hex'),
+      };
+      const logRes = this.substrate.recordObservationAndVerify(
+        `EXECUTION_GATE_RESTRAINT:${failResult.error}`,
+        0.1,
+        EvidenceSourceTier.ANONYMOUS_WEB
+      );
+      return { result: failResult, merkleNodeHash: logRes.node.merkleHash };
+    }
+
     // ALL REVALIDATION PREDICATES PASSED! Record nonce to prevent replay (LAW 7)
     AntiReplayLedger.recordNonce(artifact.nonce);
 
@@ -633,6 +654,64 @@ export class GovernedExecutionKernel {
 
   public getPosture(): DefensivePosture {
     return this.governor.getPosture();
+  }
+
+  /**
+   * BRIDGE 1: Ingest World Model Tensors directly into Policy Governor
+   * Automatically adapts posture and evaluates boundary risk based on continuous cognitive perception tensors.
+   */
+  public ingestWorldModelTensor(tensor: {
+    frustrationProbability?: number;
+    confusionProbability?: number;
+    uncertaintyProbability?: number;
+    engagementProbability?: number;
+    contextConfidence?: number;
+    evidence?: string[];
+  }): {
+    posture: DefensivePosture;
+    compositeRiskScore: number;
+    postureShiftReason?: string;
+    merkleNodeHash?: string;
+  } {
+    const frustration = tensor.frustrationProbability || 0;
+    const confusion = tensor.confusionProbability || 0;
+    const uncertainty = tensor.uncertaintyProbability || 0;
+    const confidence = tensor.contextConfidence ?? 0.85;
+
+    // Calculate composite boundary risk score (0 - 100)
+    const compositeRiskScore = Math.min(
+      100,
+      Math.round(frustration * 0.4 + confusion * 0.35 + uncertainty * 0.25 + (1 - confidence) * 20)
+    );
+
+    const currentPosture = this.governor.getPosture();
+    let updatedPosture = currentPosture;
+    let postureShiftReason: string | undefined;
+
+    if (compositeRiskScore >= 70 && currentPosture === 'NORMAL') {
+      updatedPosture = 'RAPTOR';
+      this.governor.setPosture('RAPTOR');
+      postureShiftReason = `World Model Tensor Risk (${compositeRiskScore}%) exceeded threshold (70%). Posture shifted to RAPTOR.`;
+    } else if (compositeRiskScore <= 35 && currentPosture === 'RAPTOR') {
+      updatedPosture = 'NORMAL';
+      this.governor.setPosture('NORMAL');
+      postureShiftReason = `World Model Tensor Risk (${compositeRiskScore}%) normalized. Posture restored to NORMAL.`;
+    }
+
+    // Ingest tensor evidence into Merkle Evidence DAG
+    const tensorPayload = `WORLD_MODEL_TENSOR_INGESTION :: RISK:${compositeRiskScore}% :: POSTURE:${updatedPosture}${postureShiftReason ? ` :: ${postureShiftReason}` : ''}`;
+    const logRes = this.substrate.recordObservationAndVerify(
+      tensorPayload,
+      confidence,
+      EvidenceSourceTier.EXPERT_VERIFIED
+    );
+
+    return {
+      posture: updatedPosture,
+      compositeRiskScore,
+      postureShiftReason,
+      merkleNodeHash: logRes.node.merkleHash,
+    };
   }
 
   /**

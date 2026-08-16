@@ -400,16 +400,28 @@ export default function App() {
         if (data.epistemicState) setEpistemicState(data.epistemicState);
         fetchKernelState();
       } else {
+        const data = await res.json().catch(() => ({}));
+        const reasonStr = data.reason || data.error || data.message || "Response synthesized under local substrate governance. Identity preservation nominal.";
         const sentinelMsg: ChatMessage = {
           id: `SENTINEL-${Date.now()}`,
           sender: 'SENTINEL',
-          text: "Laura AI: Response synthesized under local substrate governance. Identity preservation nominal.",
+          text: `[Laura AI Governance Note]: ${reasonStr}`,
           timestamp: new Date().toISOString(),
+          envelope: data.envelope,
         };
         setMessages((prev) => [...prev, sentinelMsg]);
+        if (data.posture) setPosture(data.posture);
+        fetchKernelState();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Chat error:', err);
+      const sentinelMsg: ChatMessage = {
+        id: `SENTINEL-${Date.now()}`,
+        sender: 'SENTINEL',
+        text: `[Laura AI Communication Fault]: ${err?.message || 'Network transport interrupted.'}`,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, sentinelMsg]);
     } finally {
       setIsChatLoading(false);
     }

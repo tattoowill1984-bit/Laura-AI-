@@ -200,6 +200,34 @@ export class TinyArtificialUniverseSandbox {
     };
   }
 
+  /**
+   * BRIDGE 4: Calculates current TAU Sandbox anomaly & concept drift rate (0 - 100%).
+   * Triggers automatic system posture degradation if anomaly metrics exceed safety thresholds.
+   */
+  public getSimulationAnomalyRate(): {
+    anomalyRate: number;
+    conceptDriftScore: number;
+    unresolvedQuestionsCount: number;
+    requiresPostureDegradation: boolean;
+    recommendedPosture?: 'RAPTOR' | 'STONEWALL';
+  } {
+    const unresolved = this.graph.unresolvedQuestionTopologyCount;
+    const drift = this.graph.conceptDriftScore;
+
+    // Anomaly rate is a weighted combination of concept drift score and unresolved questions topology
+    const anomalyRate = Math.min(100, Math.round(drift * 1.2 + unresolved * 4));
+    const requiresPostureDegradation = anomalyRate >= 35;
+    const recommendedPosture = anomalyRate >= 60 ? 'STONEWALL' : anomalyRate >= 35 ? 'RAPTOR' : undefined;
+
+    return {
+      anomalyRate,
+      conceptDriftScore: drift,
+      unresolvedQuestionsCount: unresolved,
+      requiresPostureDegradation,
+      recommendedPosture,
+    };
+  }
+
   private recalculateTopology() {
     this.graph.unresolvedQuestionTopologyCount = this.graph.nodes.filter((n) => n.category === 'QUESTION').length;
   }

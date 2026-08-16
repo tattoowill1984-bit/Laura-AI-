@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { webRetrievalAdapter, QuarantinedWebObservation } from './webRetrievalAdapter';
 import { toolCapabilityRegistry, CapabilityStatus } from './toolCapabilityRegistry';
+import { GovernedExecutionKernel, UntrustedProposal } from './governedExecutionKernel';
 
 export type ToolExecutionState =
   | 'TOOL_REQUESTED'
@@ -55,6 +56,8 @@ export interface IntentClassificationResult {
   freshnessRequired: boolean;
   suggestedAction: 'external_retrieval' | 'none';
   capabilityStatus: CapabilityStatus;
+  resolvedQuery?: string;
+  isRetryDirective?: boolean;
   reason?: string;
 }
 
@@ -71,6 +74,8 @@ export interface ToolExecutionRecord {
 export class ExternalRetrievalGateway {
   private static instance: ExternalRetrievalGateway;
   private executionHistory: ToolExecutionRecord[] = [];
+  private executionKernel?: GovernedExecutionKernel;
+  private lastPendingQuery?: string;
 
   private constructor() {}
 
@@ -81,35 +86,110 @@ export class ExternalRetrievalGateway {
     return ExternalRetrievalGateway.instance;
   }
 
+  public setExecutionKernel(kernel: GovernedExecutionKernel): void {
+    this.executionKernel = kernel;
+  }
+
+  public getExecutionKernel(): GovernedExecutionKernel | undefined {
+    return this.executionKernel;
+  }
+
+  public setPendingTaskQuery(query: string): void {
+    if (query && query.trim().length > 0) {
+      this.lastPendingQuery = query.trim();
+    }
+  }
+
+  public getPendingTaskQuery(): string | undefined {
+    return this.lastPendingQuery;
+  }
+
+  /**
+   * Resolves whether promptText is a retry/follow-up directive ('try again') and binds it to the prior unresolved query.
+   */
+  public resolveEffectiveRetrievalQuery(
+    promptText: string,
+    history?: Array<{ role?: string; sender?: string; text?: string }>
+  ): { effectiveQuery: string; isRetry: boolean } {
+    const trimmed = promptText.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Check if promptText is a retry / meta directive
+    const retryRegex = /\b(try\s+again|retry|please\s+try\s+again|try\s+it\s+again|do\s+it\s+again|one\s+more\s+time|fix\s+issues\s+and\s+try\s+again)\b/i;
+    const isRetry = retryRegex.test(lower) || lower === 'try again' || lower === 'retry' || lower.includes('try again');
+
+    if (isRetry) {
+      // 1. Try stored pending query
+      if (this.lastPendingQuery && this.lastPendingQuery.trim().length > 0) {
+        return { effectiveQuery: this.lastPendingQuery, isRetry: true };
+      }
+
+      // 2. Scan conversation history backwards for last substantive query
+      if (history && history.length > 0) {
+        for (let i = history.length - 1; i >= 0; i--) {
+          const turn = history[i];
+          const turnText = (turn.text || '').trim();
+          const turnLower = turnText.toLowerCase();
+          const isUserTurn = turn.role === 'user' || turn.sender === 'user';
+          if (isUserTurn && turnText && !retryRegex.test(turnLower) && turnText.length > 5) {
+            this.lastPendingQuery = turnText;
+            return { effectiveQuery: turnText, isRetry: true };
+          }
+        }
+      }
+    }
+
+    // Substantive user query
+    if (trimmed.length > 0) {
+      this.lastPendingQuery = trimmed;
+    }
+    return { effectiveQuery: trimmed, isRetry };
+  }
+
   /**
    * Evaluates if a query requires fresh external information vs internal knowledge
    */
-  public classifyRequestIntent(promptText: string): IntentClassificationResult {
-    const lower = promptText.toLowerCase();
+  public classifyRequestIntent(
+    promptText: string,
+    history?: Array<{ role?: string; sender?: string; text?: string }>
+  ): IntentClassificationResult {
+    const { effectiveQuery, isRetry } = this.resolveEffectiveRetrievalQuery(promptText, history);
+    const evalText = effectiveQuery || promptText;
+    const lower = evalText.toLowerCase();
+
     const freshnessKeywords = [
       'today',
       'this morning',
       'right now',
-      'latest',
-      'current',
+      'latest news',
+      'current weather',
       'recently',
       'tonight',
       'this week',
-      'breaking',
-      'updated',
-      'headlines',
-      'news',
-      'tulsa',
-      'weather',
+      'breaking news',
+      'updated headlines',
+      'tulsa weather',
+      'weather forecast',
       'search the web',
-      'lookup',
+      'search google',
+      'lookup online',
       'open this webpage',
       'public webpage',
+      'web search',
+      'internet search',
     ];
 
     const needsFreshness = freshnessKeywords.some((kw) => lower.includes(kw));
-    const isExternalSearchRequest = lower.includes('search') || lower.includes('lookup') || lower.includes('news') || lower.includes('web') || needsFreshness;
+    const isExternalSearchRequest =
+      lower.includes('search the web') ||
+      lower.includes('web search') ||
+      lower.includes('lookup online') ||
+      lower.includes('google search') ||
+      lower.includes('weather forecast') ||
+      needsFreshness ||
+      isRetry;
 
+    // Query truthful capability status from toolCapabilityRegistry without manufacturing AVAILABILITY
     const currentCapStatus = toolCapabilityRegistry.getCapabilityStatus('external_retrieval');
 
     if (isExternalSearchRequest) {
@@ -118,7 +198,11 @@ export class ExternalRetrievalGateway {
         freshnessRequired: needsFreshness,
         suggestedAction: 'external_retrieval',
         capabilityStatus: currentCapStatus,
-        reason: needsFreshness
+        resolvedQuery: evalText,
+        isRetryDirective: isRetry,
+        reason: isRetry
+          ? `Follow-up retry directive bound to unresolved prior query '${evalText}'.`
+          : needsFreshness
           ? 'Query contains freshness indicators requiring real-time external retrieval.'
           : 'Query explicitly requests external knowledge lookups.',
       };
@@ -129,6 +213,8 @@ export class ExternalRetrievalGateway {
       freshnessRequired: false,
       suggestedAction: 'none',
       capabilityStatus: currentCapStatus,
+      resolvedQuery: evalText,
+      isRetryDirective: isRetry,
       reason: 'Query can be processed via internal knowledge or logic.',
     };
   }
@@ -136,7 +222,11 @@ export class ExternalRetrievalGateway {
   /**
    * Main entry point for requesting external information
    */
-  public async request(req: ExternalRetrievalRequest): Promise<{
+  public async request(
+    req: ExternalRetrievalRequest,
+    overrideKernel?: GovernedExecutionKernel,
+    identityId: string = 'will-owner'
+  ): Promise<{
     state: ToolExecutionState;
     observation?: ExternalObservation;
     failureReason?: string;
@@ -145,20 +235,22 @@ export class ExternalRetrievalGateway {
     const execId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const now = new Date().toISOString();
 
-    // 1. Capability Readiness Check
-    if (!toolCapabilityRegistry.isCapabilityAvailable('external_retrieval')) {
+    // 1. Capability Readiness Check derived strictly from verified tool capability registry
+    const isCapAvailable = toolCapabilityRegistry.isCapabilityAvailable('external_retrieval');
+    if (!isCapAvailable) {
+      const currentStatus = toolCapabilityRegistry.getCapabilityStatus('external_retrieval');
       const record: ToolExecutionRecord = {
         executionId: execId,
         timestamp: now,
         toolName: 'external_retrieval',
         state: 'TOOL_UNAVAILABLE',
         queryOrTarget: req.query,
-        failureReason: 'CAPABILITY_UNAVAILABLE: capability external_retrieval is runtime_tool_not_connected',
+        failureReason: `CAPABILITY_UNAVAILABLE: capability external_retrieval status is '${currentStatus}' in verified runtime registry`,
       };
       this.recordExecution(record);
       return {
         state: 'TOOL_UNAVAILABLE',
-        failureReason: 'CAPABILITY_UNAVAILABLE: capability external_retrieval is runtime_tool_not_connected',
+        failureReason: record.failureReason,
         executionRecord: record,
       };
     }
@@ -172,8 +264,65 @@ export class ExternalRetrievalGateway {
       queryOrTarget: req.query,
     });
 
+    const activeKernel = overrideKernel || this.executionKernel;
+
     try {
-      // 3. Log TOOL_EXECUTED
+      let rawQuarantinedObs: QuarantinedWebObservation;
+
+      if (activeKernel) {
+        // Evaluate proposal & execute through GovernedExecutionKernel
+        const proposal: UntrustedProposal = {
+          proposalId: `prop_${execId}`,
+          action: 'EXTERNAL_RETRIEVAL',
+          target: req.query,
+          payload: { query: req.query },
+          reasoning: req.purpose || 'External retrieval request',
+          modelMetadata: { provider: 'externalRetrievalGateway' },
+        };
+
+        const govRes = await activeKernel.processAndExecuteProposal(proposal, identityId, 'external_retrieval');
+
+        if (!govRes.decision.permitted) {
+          const record: ToolExecutionRecord = {
+            executionId: execId,
+            timestamp: new Date().toISOString(),
+            toolName: 'external_retrieval',
+            state: 'TOOL_UNAVAILABLE',
+            queryOrTarget: req.query,
+            failureReason: `GOVERNANCE_DENIED: ${govRes.decision.rejectionReason || 'Policy or capability restraint'}`,
+          };
+          this.recordExecution(record);
+          return {
+            state: 'TOOL_UNAVAILABLE',
+            failureReason: record.failureReason,
+            executionRecord: record,
+          };
+        }
+
+        if (govRes.execution && !govRes.execution.success) {
+          const record: ToolExecutionRecord = {
+            executionId: execId,
+            timestamp: new Date().toISOString(),
+            toolName: 'external_retrieval',
+            state: 'TOOL_FAILED',
+            queryOrTarget: req.query,
+            failureReason: `EXECUTION_FAILED: ${govRes.execution.error || 'Effector execution failed'}`,
+          };
+          this.recordExecution(record);
+          return {
+            state: 'TOOL_FAILED',
+            failureReason: record.failureReason,
+            executionRecord: record,
+          };
+        }
+
+        rawQuarantinedObs = govRes.execution?.output;
+      } else {
+        // Fallback direct execution if kernel not attached
+        rawQuarantinedObs = await webRetrievalAdapter.executeWebSearch(req.query);
+      }
+
+      // Log TOOL_EXECUTED
       this.recordExecution({
         executionId: execId,
         timestamp: new Date().toISOString(),
@@ -182,8 +331,22 @@ export class ExternalRetrievalGateway {
         queryOrTarget: req.query,
       });
 
-      // 4. Perform actual web retrieval
-      const rawQuarantinedObs: QuarantinedWebObservation = await webRetrievalAdapter.executeWebSearch(req.query);
+      if (!rawQuarantinedObs || !rawQuarantinedObs.results) {
+        const record: ToolExecutionRecord = {
+          executionId: execId,
+          timestamp: new Date().toISOString(),
+          toolName: 'external_retrieval',
+          state: 'TOOL_FAILED',
+          queryOrTarget: req.query,
+          failureReason: 'EMPTY_OBSERVATION: Web retrieval adapter returned undefined observation',
+        };
+        this.recordExecution(record);
+        return {
+          state: 'TOOL_FAILED',
+          failureReason: record.failureReason,
+          executionRecord: record,
+        };
+      }
 
       const items: ExternalObservationResultItem[] = rawQuarantinedObs.results.map((r) => ({
         title: r.title,
@@ -214,7 +377,7 @@ export class ExternalRetrievalGateway {
           fetchedAt: rawQuarantinedObs.provenance.fetchedAt,
           retrievalMethod: 'Executable Multi-Source Gateway HTTP Adapter',
         },
-        retrieval_status: items.length > 0 ? 'SUCCESS' : 'PARTIAL',
+        retrieval_status: items.length > 0 ? 'SUCCESS' : 'FAILED',
         uncertainty: rawQuarantinedObs.provenance.uncertaintyScore,
         content_hash: contentHash,
         quarantineState: 'QUARANTINED_OBSERVATION',
@@ -305,7 +468,7 @@ export class ExternalRetrievalGateway {
   /**
    * Executes llm_consultation tool capability
    */
-  public async consultExternalLLM(prompt: string, targetModel: string = 'gemini-3.6-flash'): Promise<{
+  public async consultExternalLLM(prompt: string, targetModel: string = 'gemini-3.7-flash'): Promise<{
     state: ToolExecutionState;
     consultationOutput?: string;
     failureReason?: string;

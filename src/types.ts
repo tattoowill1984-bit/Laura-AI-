@@ -265,5 +265,7 @@ export interface ChatMessage {
   sensoryActive?: boolean;
   interAiMeta?: InterAIDialogueEnvelope;
   attachments?: FileAttachment[];
+  executionMetadata?: any;
+  vnextTurn?: any;
 }
 

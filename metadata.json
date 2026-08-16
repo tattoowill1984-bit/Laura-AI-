@@ -1,6 +1,6 @@
 {
   "name": "Laura AI",
-  "description": "",
+  "description": "An AI-powered knowledge synthesis system and epistemic assistant capable of accessing, retrieving, and synthesizing factual multi-modal information across various domain knowledge sources.",
   "requestFramePermissions": [
     "camera",
     "microphone"

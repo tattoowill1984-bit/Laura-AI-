@@ -265,7 +265,7 @@ export async function runExternalRetrievalTestSuite(): Promise<TestResultItem[]>
   try {
     const consultRes = await externalRetrievalGateway.consultExternalLLM(
       'Evaluate structural consistency of active posture under raptor constraint',
-      'gemini-3.6-flash'
+      'gemini-3.7-flash'
     );
 
     const tgPassed = consultRes.state === 'TOOL_RETURNED_RESULT' && !!consultRes.consultationOutput?.includes('LLM_CONSULTATION');

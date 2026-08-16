@@ -53,6 +53,29 @@ export class AutonomousHealthLoop {
     const currentTier = this.kernel.getCurrentTier();
     const pendingProposals = this.kernel.getProposals().filter((p) => p.status === 'PROPOSAL_PENDING_HUMAN_PROOF');
 
+    // 1b. BRIDGE 4: Query TAU Sandbox Simulation Anomaly Rate & Check Fault Conditions
+    const tauInstance = this.kernel.getTAUInstance();
+    const anomalyEval = tauInstance.getSimulationAnomalyRate();
+
+    if (this.hashIntegrity === 'MISMATCH' && posture !== 'STONEWALL') {
+      console.warn('[AutonomousHealthLoop] Hash integrity mismatch detected! Triggering emergency STONEWALL posture.');
+      this.kernel.setPosture('STONEWALL');
+      this.kernel.recordBurnLog(
+        'Observation ≠ Truth',
+        'Cryptographic hash mismatch detected across mirroring channels. Posture forced to STONEWALL.',
+        'STONEWALL'
+      );
+    } else if ((this.reasoningModelStatus === 'UNRESPONSIVE' || anomalyEval.requiresPostureDegradation) && posture === 'NORMAL') {
+      const targetPosture = anomalyEval.recommendedPosture || 'RAPTOR';
+      console.warn(`[AutonomousHealthLoop] TAU Anomaly Rate (${anomalyEval.anomalyRate}%) / Model status (${this.reasoningModelStatus}) triggered posture degradation to ${targetPosture}.`);
+      this.kernel.setPosture(targetPosture);
+      this.kernel.recordBurnLog(
+        'Capability ≠ Permission',
+        `TAU Sandbox Anomaly Rate ${anomalyEval.anomalyRate}% (Concept Drift: ${anomalyEval.conceptDriftScore}%). Posture degraded to ${targetPosture}.`,
+        targetPosture
+      );
+    }
+
     // Verify Tier 0 / Tier 1 autonomy rule
     const canSoftMaintain = this.kernel.canAutonomouslyPerform('HEALTH_CHECK');
     if (!canSoftMaintain) {

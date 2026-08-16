@@ -6,9 +6,26 @@ import { SentinelMutationKernel } from '../../src/engine/kernel';
 export class LiveWebSocketGateway {
   private wss: WebSocketServer | null = null;
   private kernel: SentinelMutationKernel;
+  private latestFrameBase64: string | null = null;
+  private latestFrameTimestamp: string | null = null;
+  private latestSensorState: any = null;
 
   constructor(kernel: SentinelMutationKernel) {
     this.kernel = kernel;
+  }
+
+  public getLatestFrameBase64(): { frame: string; timestamp: string } | null {
+    if (this.latestFrameBase64 && this.latestFrameTimestamp) {
+      const ageMs = Date.now() - new Date(this.latestFrameTimestamp).getTime();
+      if (ageMs < 30000) { // Valid within 30 seconds
+        return { frame: this.latestFrameBase64, timestamp: this.latestFrameTimestamp };
+      }
+    }
+    return null;
+  }
+
+  public getLatestSensorState(): any {
+    return this.latestSensorState;
   }
 
   public attach(server: HttpServer) {
@@ -60,6 +77,10 @@ export class LiveWebSocketGateway {
     if (type === 'CONTINUOUS_CAMERA_FRAME' || effectiveFrame) {
       modality = 'CAMERA';
       rawContent = '[CONTINUOUS_CAMERA_FRAME_SAMPLED]';
+      if (effectiveFrame && typeof effectiveFrame === 'string') {
+        this.latestFrameBase64 = effectiveFrame;
+        this.latestFrameTimestamp = activeTemporalAnchor.timestamp || new Date().toISOString();
+      }
       this.kernel.getGabbySubstrate().guard.updateVisualPresence({
         isCameraActive: true,
         confidenceScore: 92,

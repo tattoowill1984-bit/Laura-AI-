@@ -1088,6 +1088,27 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                 </div>
               )}
 
+              {/* Multi-Model Triangulation Telemetry Card */}
+              {msg.executionMetadata && (
+                <div className="mt-2 p-2.5 bg-slate-950/90 rounded-xl border border-cyan-500/30 text-[11px] font-mono space-y-1 text-slate-300">
+                  <div className="flex items-center justify-between text-cyan-300 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                      Triangulation Model: {msg.executionMetadata.model || 'gemini-3.6-flash'}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                      {msg.executionMetadata.execution || 'LLM_SYNTHESIS'}
+                    </span>
+                  </div>
+                  {msg.executionMetadata.triangulation && (
+                    <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800">
+                      <span>Divergence Score: <strong className="text-purple-300">{msg.executionMetadata.triangulation.divergenceScore ?? 0.05}</strong></span>
+                      <span>Consensus: <strong className="text-emerald-400">{msg.executionMetadata.triangulation.consensusAchieved ? 'VERIFIED' : 'SINGLE_SOURCE'}</strong></span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Embedded System Proposal Card */}
               {msg.proposal && (
                 <div className="mt-3 p-3.5 bg-amber-500/10 rounded-xl border border-amber-500/40 text-xs space-y-2">
