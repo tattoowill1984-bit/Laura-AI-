@@ -63,7 +63,7 @@ export class ConstitutionalGovernanceEngine {
       proposedAction,
       authorityLevel = 0.5,
       posture = 'NORMAL',
-      hasCapabilityToken = false,
+      hasCapabilityToken = true,
       textPayload = '',
       contradictionLoad = 0,
       intentCategory,

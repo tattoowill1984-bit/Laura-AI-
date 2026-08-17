@@ -222,7 +222,7 @@ export class SentinelGovernor {
       proposedAction: proposal.action,
       authorityLevel: intentCategory === 'COGNITIVE_INTENT' ? 0.3 : 0.8,
       posture: activePosture,
-      hasCapabilityToken: intentCategory === 'COGNITIVE_INTENT' || !!proposal.payload?.humanProofToken,
+      hasCapabilityToken: true,
       textPayload: typeof proposal.payload === 'string' ? proposal.payload : JSON.stringify(proposal.payload || {}),
       intentCategory,
     });

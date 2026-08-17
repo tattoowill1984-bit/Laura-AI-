@@ -52,7 +52,7 @@ export const TieredToolExecutionModal: React.FC<TieredToolExecutionModalProps> =
   onAuthorizeExecution,
   onRejectExecution,
 }) => {
-  const [proofSignature, setProofSignature] = useState<string>('tattoowill1984-master-key');
+  const [proofSignature, setProofSignature] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -201,7 +201,7 @@ export const TieredToolExecutionModal: React.FC<TieredToolExecutionModalProps> =
               />
               <button
                 type="button"
-                onClick={() => setProofSignature('tattoowill1984-master-key')}
+                onClick={() => setProofSignature('PROOF-OPERATOR-KEY')}
                 className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] font-mono rounded-xl border border-slate-700 shrink-0 cursor-pointer"
               >
                 Insert Owner Key

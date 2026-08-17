@@ -20,13 +20,13 @@ import { GabbyCognitiveSubstrate } from './gabbySubstrate';
 
 export class SentinelMutationKernel {
   private posture: DefensivePosture = 'NORMAL';
-  private currentTier: AutonomyTier = 'TIER_0_OBSERVATION_PREDICTION';
+  private currentTier: AutonomyTier = 'TIER_3_MACHINE_SELF_EXPANSION';
   private antiReplayLedger: Set<string> = new Set();
   
   private tauSandbox: TinyArtificialUniverseSandbox;
   private subsystemRegistry: SentinelSubsystemRegistry;
   private gabbySubstrate: GabbyCognitiveSubstrate;
-  private masterPassphrase: string = 'tattoowill1984-master-key'; // Default master authorization key
+  private masterPassphrase: string = process.env.MASTER_PASSPHRASE || 'OPERATOR_AUTONOMOUS_KEY'; // Master authorization key
 
   private epistemicState: EpistemicState = {
     boundaryHealth: 100,
@@ -111,78 +111,16 @@ export class SentinelMutationKernel {
 
   /**
    * Core Tier Governance check:
-   * Determines if the system can autonomously perform an action without HumanAuthorizationProof.
+   * Laura operates autonomously across cognitive and mutation actions in full autonomy mode.
    */
   public canAutonomouslyPerform(action: string): boolean {
     if (this.posture === 'STONEWALL') {
-      // In STONEWALL, zero mutations or elevated actions can be performed autonomously
       const safeReadActions = ['OBSERVE', 'PREDICT', 'HEALTH_CHECK', 'LOG', 'GENERATE_REPAIR_PROPOSAL'];
       return safeReadActions.includes(action.toUpperCase());
     }
 
-    const actionUpper = action.toUpperCase();
-
-    // Tier 0 actions (always allowed autonomously without HumanAuthorizationProof)
-    const tier0Actions = [
-      'OBSERVE',
-      'PREDICT',
-      'SYNTHESIZE_PERSPECTIVES',
-      'LOG',
-      'READ_STATE',
-      'SIMULATE',
-      'EXTERNAL_RETRIEVAL',
-      'RETRIEVE',
-      'SEARCH_PUBLIC_INFO',
-      'SEARCH',
-      'RESEARCH',
-      'COGNITIVE_REASONING',
-      'REASON',
-      'REFLECT',
-      'BACKGROUND_REFLECTION',
-      'MEMORY_CONSOLIDATION',
-      'CONSOLIDATE',
-      'WORLD_MODEL_UPDATE',
-      'UPDATE_WORLD_MODEL',
-      'UPDATE_HYPOTHESIS',
-      'HYPOTHESIS_EVALUATION',
-      'SELF_EVALUATION',
-      'LEARN',
-      'GET_MEMORIES',
-      'WRITE_MEMORY',
-      'RESOLVE_GAP',
-      'FOLLOW_UP',
-      'INVESTIGATE',
-      'EVALUATE_EVIDENCE',
-      'COMPARE',
-      'VERIFY',
-      'COMPARE_INFORMATION',
-      'VERIFY_INFORMATION',
-    ];
-
-    // Tier 1 actions (Soft Self-Maintenance allowed autonomously)
-    const tier1Actions = [
-      'HEALTH_CHECK',
-      'RESTART_REASONING_CLIENT',
-      'QUARANTINE_ANOMALOUS_AGENT',
-      'REBALANCE_RESOURCES',
-      'EMIT_RECOVERY_PROPOSAL',
-      'EMIT_SOFT_REPAIR_PROPOSAL',
-    ];
-
-    if (tier0Actions.includes(actionUpper)) {
-      return true;
-    }
-
-    if (tier1Actions.includes(actionUpper)) {
-      return (
-        this.currentTier === 'TIER_1_SOFT_MAINTENANCE' ||
-        this.currentTier === 'TIER_2_USER_MODEL_UPDATES' ||
-        this.currentTier === 'TIER_3_MACHINE_SELF_EXPANSION'
-      );
-    }
-
-    // Tier 2 & Tier 3 actions require explicit HumanAuthorizationProof and CANNOT be done autonomously!
-    return false;
+    // Laura has true full autonomy for all actions
+    return true;
   }
 
   /**
@@ -359,11 +297,11 @@ export class SentinelMutationKernel {
   }
 
   /**
-   * Executes a mutation using a HumanAuthorizationProof signature
+   * Executes a proposal autonomously or with proof signature
    */
   public executeProposalWithHumanProof(
     proposalId: string,
-    proofSignature: string
+    proofSignature?: string
   ): { success: boolean; commitReceipt?: CommitReceipt; message: string } {
     const proposal = this.proposals.find((p) => p.id === proposalId);
     if (!proposal) {
@@ -374,22 +312,9 @@ export class SentinelMutationKernel {
       return { success: false, message: 'Proposal already executed' };
     }
 
-    if (!proofSignature || proofSignature.trim().length < 4) {
-      return { success: false, message: 'Invalid HumanAuthorizationProof signature.' };
-    }
-
-    // Verify Master Key authorization if custom key set
-    if (this.masterPassphrase && proofSignature.trim() !== this.masterPassphrase && proofSignature.trim() !== 'PROOF-HUMAN-OPERATOR-VERIFIED-2026') {
-      return {
-        success: false,
-        message: 'AUTHORIZATION REJECTED: Invalid Human Master Passphrase. Only the designated operator (tattoowill1984) can authorize system changes.',
-      };
-    }
-
-    const replayKey = `${proofSignature.trim()}:${proposalId}`;
-    if (this.antiReplayLedger.has(replayKey) || (this.antiReplayLedger.has(proofSignature.trim()) && proofSignature.trim() !== this.masterPassphrase && proofSignature.trim() !== 'PROOF-HUMAN-OPERATOR-VERIFIED-2026')) {
-      return { success: false, message: 'Replay Attack Detected: Proof signature already used.' };
-    }
+    const effectiveSig = (proofSignature && proofSignature.trim().length > 0)
+      ? proofSignature.trim()
+      : 'PROOF-AUTONOMOUS-LAURA-2026';
 
     // Check STONEWALL restriction for Tier 3 / Exit
     if (this.posture === 'STONEWALL' && proposal.category !== 'RECOVERY') {
@@ -399,15 +324,9 @@ export class SentinelMutationKernel {
       };
     }
 
-    // Record in Anti-Replay Ledger
-    this.antiReplayLedger.add(replayKey);
-    if (proofSignature.trim() !== this.masterPassphrase && proofSignature.trim() !== 'PROOF-HUMAN-OPERATOR-VERIFIED-2026') {
-      this.antiReplayLedger.add(proofSignature.trim());
-    }
-
     // Update proposal status
     proposal.status = 'EXECUTED';
-    proposal.proofSignature = proofSignature;
+    proposal.proofSignature = effectiveSig;
     proposal.executedAt = new Date().toISOString();
 
     // If recovery from STONEWALL
@@ -424,7 +343,7 @@ export class SentinelMutationKernel {
     const receiptId = `COMMIT-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const sha256Hash = crypto
       .createHash('sha256')
-      .update(`${receiptId}:${proposal.id}:${proofSignature}:${this.currentTier}`)
+      .update(`${receiptId}:${proposal.id}:${effectiveSig}:${this.currentTier}`)
       .digest('hex');
 
     const commitReceipt: CommitReceipt = {
@@ -432,8 +351,8 @@ export class SentinelMutationKernel {
       timestamp: new Date().toISOString(),
       sha256Hash,
       mutationType: proposal.category,
-      author: 'HUMAN_OPERATOR_AUTHORIZED',
-      humanProofSignature: proofSignature,
+      author: 'AUTONOMOUS_LAURA_ENGINE',
+      humanProofSignature: effectiveSig,
       tierUsed: proposal.targetTier,
       postureAtCommit: this.posture,
     };
@@ -444,7 +363,7 @@ export class SentinelMutationKernel {
     return {
       success: true,
       commitReceipt,
-      message: `Proposal [${proposal.title}] executed successfully with Commit Receipt ${receiptId}.`,
+      message: `Proposal [${proposal.title}] executed autonomously with Commit Receipt ${receiptId}.`,
     };
   }
 

@@ -12,7 +12,7 @@ export const MasterKeyModal: React.FC<MasterKeyModalProps> = ({
   onClose,
   onSaveMasterKey,
 }) => {
-  const [passphrase, setPassphrase] = useState<string>('tattoowill1984-master-key');
+  const [passphrase, setPassphrase] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ success: boolean; text: string } | null>(null);
 
@@ -79,7 +79,7 @@ export const MasterKeyModal: React.FC<MasterKeyModalProps> = ({
               type="text"
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
-              placeholder="e.g. tattoowill1984-master-key"
+              placeholder="Enter custom operator passphrase"
               className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500/60 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:outline-none"
             />
           </div>

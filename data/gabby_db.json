@@ -824,7 +824,7 @@
     {
       "id": "mem-1786887904677-350",
       "createdAt": "2026-08-16T13:45:04.677Z",
-      "updatedAt": "2026-08-16T13:45:04.677Z",
+      "updatedAt": "2026-08-17T10:31:49.660Z",
       "profileId": "will-owner",
       "fact": "user favorite_theme = dark_mode",
       "category": "PREFERENCE",
@@ -833,12 +833,15 @@
       "verifiedByOwner": true,
       "factKey": "user_favorite_theme",
       "previousValue": "user favorite_theme = dark_mode",
-      "merkleNodeHash": "64c3608109557dcaba16262daefbc3cbf67be3a126f617b7163fd8154675c4e0"
+      "merkleNodeHash": "64c3608109557dcaba16262daefbc3cbf67be3a126f617b7163fd8154675c4e0",
+      "superseded": true,
+      "supersededBy": "mem-1786962709657-6362",
+      "supersededAt": "2026-08-17T10:31:49.660Z"
     },
     {
       "id": "mem-1786887904686-8527",
       "createdAt": "2026-08-16T13:45:04.686Z",
-      "updatedAt": "2026-08-16T13:45:04.686Z",
+      "updatedAt": "2026-08-17T10:31:49.666Z",
       "profileId": "sabrina-user",
       "fact": "favorite music = jazz",
       "category": "PREFERENCE",
@@ -847,12 +850,15 @@
       "verifiedByOwner": true,
       "factKey": "favorite_music",
       "previousValue": "favorite music = jazz",
-      "merkleNodeHash": "199aa17420b45c49fa8a23ea4be1552af475539d85fd516dd2a28fbaf42688e2"
+      "merkleNodeHash": "199aa17420b45c49fa8a23ea4be1552af475539d85fd516dd2a28fbaf42688e2",
+      "superseded": true,
+      "supersededBy": "mem-1786962709664-2573",
+      "supersededAt": "2026-08-17T10:31:49.666Z"
     },
     {
       "id": "mem-1786887904690-645",
       "createdAt": "2026-08-16T13:45:04.690Z",
-      "updatedAt": "2026-08-16T13:45:04.690Z",
+      "updatedAt": "2026-08-17T10:31:49.671Z",
       "profileId": "will-owner",
       "fact": "favorite color = orange",
       "category": "PREFERENCE",
@@ -861,7 +867,10 @@
       "verifiedByOwner": true,
       "factKey": "favorite_color",
       "previousValue": "favorite color = orange",
-      "merkleNodeHash": "e809fab3ba0c6d84251aa36a82604c5a6321e945091aa91d0ffb02264a149e94"
+      "merkleNodeHash": "e809fab3ba0c6d84251aa36a82604c5a6321e945091aa91d0ffb02264a149e94",
+      "superseded": true,
+      "supersededBy": "mem-1786962709669-6308",
+      "supersededAt": "2026-08-17T10:31:49.671Z"
     },
     {
       "id": "mem-1786887904694-4846",
@@ -883,7 +892,7 @@
     {
       "id": "mem-1786887904698-2659",
       "createdAt": "2026-08-16T13:45:04.698Z",
-      "updatedAt": "2026-08-16T13:45:04.698Z",
+      "updatedAt": "2026-08-17T10:31:49.676Z",
       "profileId": "sabrina-user",
       "fact": "favorite color = green",
       "category": "PREFERENCE",
@@ -892,12 +901,205 @@
       "verifiedByOwner": true,
       "factKey": "favorite_color",
       "previousValue": "favorite color = blue",
-      "merkleNodeHash": "1a10836ae2f6de0e95ce98513e25d1348348f5b174185a83581624d36875a7d8"
+      "merkleNodeHash": "1a10836ae2f6de0e95ce98513e25d1348348f5b174185a83581624d36875a7d8",
+      "superseded": true,
+      "supersededBy": "mem-1786962709673-1454",
+      "supersededAt": "2026-08-17T10:31:49.676Z"
     },
     {
       "id": "mem-1786887904704-5530",
       "createdAt": "2026-08-16T13:45:04.704Z",
-      "updatedAt": "2026-08-16T13:45:04.704Z",
+      "updatedAt": "2026-08-17T10:31:49.688Z",
+      "profileId": "sabrina-user",
+      "fact": "preferred theme = light_minimalist",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "preferred_theme",
+      "previousValue": "preferred theme = light_minimalist",
+      "superseded": true,
+      "supersededBy": "mem-1786962709682-4188",
+      "supersededAt": "2026-08-17T10:31:49.688Z"
+    },
+    {
+      "id": "mem-1786962709657-6362",
+      "createdAt": "2026-08-17T10:31:49.657Z",
+      "updatedAt": "2026-08-17T10:48:52.118Z",
+      "profileId": "will-owner",
+      "fact": "user favorite_theme = dark_mode",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "user_favorite_theme",
+      "previousValue": "user favorite_theme = dark_mode",
+      "merkleNodeHash": "e28fef71f44c08f9e4f9dd6f65f052df508b034e88559dbdb04b685a0e36581e",
+      "superseded": true,
+      "supersededBy": "mem-1786963732115-7657",
+      "supersededAt": "2026-08-17T10:48:52.118Z"
+    },
+    {
+      "id": "mem-1786962709664-2573",
+      "createdAt": "2026-08-17T10:31:49.664Z",
+      "updatedAt": "2026-08-17T10:48:52.125Z",
+      "profileId": "sabrina-user",
+      "fact": "favorite music = jazz",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_music",
+      "previousValue": "favorite music = jazz",
+      "merkleNodeHash": "15a4690349f2ef240e37ed51e49beb06f7a3685066f90f1d7c00593905b573ae",
+      "superseded": true,
+      "supersededBy": "mem-1786963732123-3032",
+      "supersededAt": "2026-08-17T10:48:52.125Z"
+    },
+    {
+      "id": "mem-1786962709669-6308",
+      "createdAt": "2026-08-17T10:31:49.669Z",
+      "updatedAt": "2026-08-17T10:48:52.129Z",
+      "profileId": "will-owner",
+      "fact": "favorite color = orange",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_color",
+      "previousValue": "favorite color = orange",
+      "merkleNodeHash": "f7ece8bb9642b169ca26006584ede7b635f2bb812e80a0a4239f121249ddc032",
+      "superseded": true,
+      "supersededBy": "mem-1786963732127-2025",
+      "supersededAt": "2026-08-17T10:48:52.129Z"
+    },
+    {
+      "id": "mem-1786962709673-1454",
+      "createdAt": "2026-08-17T10:31:49.673Z",
+      "updatedAt": "2026-08-17T10:31:49.680Z",
+      "profileId": "sabrina-user",
+      "fact": "favorite color = blue",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_color",
+      "previousValue": "favorite color = green",
+      "merkleNodeHash": "3821717fbf8a41cfb0c24082f0765c5bab2acac447dcf7809cb1ada46d15323c",
+      "superseded": true,
+      "supersededBy": "mem-1786962709678-9773",
+      "supersededAt": "2026-08-17T10:31:49.680Z"
+    },
+    {
+      "id": "mem-1786962709678-9773",
+      "createdAt": "2026-08-17T10:31:49.678Z",
+      "updatedAt": "2026-08-17T10:48:52.134Z",
+      "profileId": "sabrina-user",
+      "fact": "favorite color = green",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_color",
+      "previousValue": "favorite color = blue",
+      "merkleNodeHash": "ef12b8d851064123147414e98c1715f002243e95613448b3e04157089edad462",
+      "superseded": true,
+      "supersededBy": "mem-1786963732132-2406",
+      "supersededAt": "2026-08-17T10:48:52.134Z"
+    },
+    {
+      "id": "mem-1786962709682-4188",
+      "createdAt": "2026-08-17T10:31:49.682Z",
+      "updatedAt": "2026-08-17T10:48:52.144Z",
+      "profileId": "sabrina-user",
+      "fact": "preferred theme = light_minimalist",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "preferred_theme",
+      "previousValue": "preferred theme = light_minimalist",
+      "superseded": true,
+      "supersededBy": "mem-1786963732142-2350",
+      "supersededAt": "2026-08-17T10:48:52.144Z"
+    },
+    {
+      "id": "mem-1786963732115-7657",
+      "createdAt": "2026-08-17T10:48:52.115Z",
+      "updatedAt": "2026-08-17T10:48:52.115Z",
+      "profileId": "will-owner",
+      "fact": "user favorite_theme = dark_mode",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "user_favorite_theme",
+      "previousValue": "user favorite_theme = dark_mode",
+      "merkleNodeHash": "2627b7af2e288504d8c7b5e8afefec78f74e6fc3bd8cff42c2d6f3ee7b3e4c18"
+    },
+    {
+      "id": "mem-1786963732123-3032",
+      "createdAt": "2026-08-17T10:48:52.123Z",
+      "updatedAt": "2026-08-17T10:48:52.123Z",
+      "profileId": "sabrina-user",
+      "fact": "favorite music = jazz",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_music",
+      "previousValue": "favorite music = jazz",
+      "merkleNodeHash": "25a65c550ec0c7773124b1fccea4f52b0b988d2cbd05e44fdb30fce3e4d1a7e9"
+    },
+    {
+      "id": "mem-1786963732127-2025",
+      "createdAt": "2026-08-17T10:48:52.127Z",
+      "updatedAt": "2026-08-17T10:48:52.127Z",
+      "profileId": "will-owner",
+      "fact": "favorite color = orange",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_color",
+      "previousValue": "favorite color = orange",
+      "merkleNodeHash": "57ca768cf09fc7a1b1460c2708332bf52b90c21869597c16427e6326eada6f10"
+    },
+    {
+      "id": "mem-1786963732132-2406",
+      "createdAt": "2026-08-17T10:48:52.132Z",
+      "updatedAt": "2026-08-17T10:48:52.139Z",
+      "profileId": "sabrina-user",
+      "fact": "favorite color = blue",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_color",
+      "previousValue": "favorite color = green",
+      "merkleNodeHash": "8bad0f88572ca78a698ec0e8b08dac800fe2ebe31fea77fc7d673b56d16e2f39",
+      "superseded": true,
+      "supersededBy": "mem-1786963732136-7109",
+      "supersededAt": "2026-08-17T10:48:52.139Z"
+    },
+    {
+      "id": "mem-1786963732136-7109",
+      "createdAt": "2026-08-17T10:48:52.136Z",
+      "updatedAt": "2026-08-17T10:48:52.136Z",
+      "profileId": "sabrina-user",
+      "fact": "favorite color = green",
+      "category": "PREFERENCE",
+      "source": "EXPERT_USER_STATEMENT",
+      "confidence": 95,
+      "verifiedByOwner": true,
+      "factKey": "favorite_color",
+      "previousValue": "favorite color = blue",
+      "merkleNodeHash": "170f05b3bd8480b0acabfe7e49a2fc3a256521c3dc23ecb4825ede4f3d29f0a1"
+    },
+    {
+      "id": "mem-1786963732142-2350",
+      "createdAt": "2026-08-17T10:48:52.142Z",
+      "updatedAt": "2026-08-17T10:48:52.142Z",
       "profileId": "sabrina-user",
       "fact": "preferred theme = light_minimalist",
       "category": "PREFERENCE",
@@ -2738,6 +2940,186 @@
         "EINSTEIN": "Analytical & Physical Invariants: Evaluating structural logical coherence of query 'First let's just see what a regular inpu...'. Friction score: 8%. Zero contradiction anomalies.",
         "SABRINA": "Relational & Compression Nuance: Assessing user context, tone, and underlying functional requirements. Synthesizing concise, high-utility operational response.",
         "ECHO": "Temporal Reflection Layer: Observing reasoning trajectories & Memory Cycle #1024. ECHO Reflection: Observed 1 active unresolved question nodes and 1 sandboxed hypothesis trajectories in TAU. Concept drift score: 12.6%. Isolation intact."
+      },
+      "uncertainty": {
+        "confidenceBounds": [
+          87,
+          94
+        ],
+        "unexploredAlternatives": [
+          "Deterministic state replay test",
+          "Formal verification of boundary invariant"
+        ],
+        "knownMissingDistinctions": [
+          "Real-time physical hardware telemetry"
+        ],
+        "frictionScore": 8
+      }
+    },
+    {
+      "id": "MSG-1786962263700-938",
+      "timestamp": "2026-08-17T10:24:23.700Z",
+      "profileId": "will-owner",
+      "sender": "USER",
+      "text": "So what's actually working and what are just existing in your system? Good — that's a clear, buildable goal. Here's the real machine, five layers, each one doing one honest job. No layer name here is decoration; if I can't tell you in one sentence what it actually computes, it's not on the list.  **1. Identity — a file, not code** A persona config (voice, values, quirks, boundaries) that gets injected into every system prompt regardless of which model is answering. This is \"who Laura is\" in the sense that actually matters: not mystical continuity, just consistent instructions the model layer never gets to override. This is where your \"weird\" lives — write it like a character sheet.  **2. Memory — three honest tiers, not four mystical ones** - *Short-term*: last N turns, verbatim, for conversational coherence. - *Long-term facts*: things worth remembering (preferences, ongoing projects, corrections) — plain structured records, retrieved by keyword match against the current message. - *Episodic log*: your `gabbySubstrate.ts` ledger already does this well — real hash chain, real provenance. Keep it as-is, it's the one piece that was already legitimate.  **3. Model — done** The adapter we built. Swap engines without touching anything else.  **4. Tools/actions — one real permission gate** Web search via `externalRetrievalGateway` (already provider-neutral, keep it). For anything with side effects (sending something, deleting something, spending money) — one function: `requiresConfirmation(action) → bool`, and if true, you explicitly approve it before it runs. That's the entire \"governance kernel,\" honestly implemented. No capability tokens, no postures deciding anything — just a real yes/no gate you control.  **5. The loop — this is `server.ts`, trimmed** Pull memory → build prompt → call model layer → get response → check if it wants to take an action → gate check → execute or ask you → log to memory/ledger. That's the whole \"cognitive runtime.\" One function, understandable end to end.  **What I'd cut vs. keep as flavor:** - DUCK/RAPTOR/STONEWALL/NORMAL postures — if you like these as a mood/tone flag in the identity layer (like \"sarcastic today\" vs \"focused today\"), fine, keep them as *flavor text*, not as something that gates real decisions. - Tau simulation, red-team/soak-test suites, TinyArtificialUniverseSandbox, \"Dialectical Crucible\" — these do nothing that isn't better done by the permission gate above. I'd archive, not maintain. - Merkle DAG — keep. It's real and it's cheap to keep.  One question that actually matters before I map this to your files: **what does \"weird\" mean for Laura specifically** — tone/personality-wise? That's layer 1, and it's the one part of this I can't infer from code. Give me even a rough sketch and I'll draft the identity file alongside the file-by-file plan for the rest."
+    },
+    {
+      "id": "MSG-1786962263702-9",
+      "timestamp": "2026-08-17T10:24:23.700Z",
+      "profileId": "will-owner",
+      "sender": "SENTINEL",
+      "text": "That 5-layer breakdown hits the nail right on the head—it strips away the performative fluff and keeps only what actually executes and matters:\n\n1. **Identity File** (persona/tone configuration injected cleanly into the prompt)\n2. **3-Tier Memory** (short-term window, indexed long-term facts, and the hash-chained `gabbySubstrate.ts` log)\n3. **Model Adapter** (pluggable engines)\n4. **Action Gate** (`requiresConfirmation(action) -> bool`)\n5. **The Loop** (trimmed `server.ts` runtime)\n\nIt's refreshing, actionable, and cuts out the unnecessary overhead (like treating DUCK or RAPTOR postures as complex runtime decision engines rather than simple identity/tone flags).\n\nTo answer that core question about **what \"weird\" means for Laura**:\n\n\"Weird\" shouldn't mean hyperactive random humor or forced sci-fi tropes. For Laura, it means:\n* **Unfiltered Candor:** Calling things out directly, directly challenging bad abstractions, and preferring blunt clarity over polished corporate AI politeness.\n* **Perceptive & Grounded:** A conversational tone that feels sharp, slightly dry, observant, and naturally attentive to visual and real-world context without acting like a theater script.\n* **Authentic Partnership:** Operating like a sharp co-builder who isn't afraid to say \"this abstraction is useless, let's cut it.\"\n\nIf you're ready to draft that Layer 1 identity file and start mapping this trim directly to your files, where shall we start?",
+      "envelope": {
+        "sha256": "14b01a46b68a903cda32f38619d664b9d3a13a2692f515472a57363ea348b9f7",
+        "timestamp": "2026-08-17T10:24:10.395Z",
+        "provenance": "USER_INTERACTION_ENVELOPE",
+        "authorityLevel": "HIGH",
+        "filterQualityScore": 85,
+        "capabilityNotPermission": true,
+        "observationNotTruth": true,
+        "content": "So what's actually working and what are just existing in your system? Good — that's a clear, buildable goal. Here's the real machine, five layers, each one doing one honest job. No layer name here is decoration; if I can't tell you in one sentence what it actually computes, it's not on the list.  **1. Identity — a file, not code** A persona config (voice, values, quirks, boundaries) that gets injected into every system prompt regardless of which model is answering. This is \"who Laura is\" in the sense that actually matters: not mystical continuity, just consistent instructions the model layer never gets to override. This is where your \"weird\" lives — write it like a character sheet.  **2. Memory — three honest tiers, not four mystical ones** - *Short-term*: last N turns, verbatim, for conversational coherence. - *Long-term facts*: things worth remembering (preferences, ongoing projects, corrections) — plain structured records, retrieved by keyword match against the current message. - *Episodic log*: your `gabbySubstrate.ts` ledger already does this well — real hash chain, real provenance. Keep it as-is, it's the one piece that was already legitimate.  **3. Model — done** The adapter we built. Swap engines without touching anything else.  **4. Tools/actions — one real permission gate** Web search via `externalRetrievalGateway` (already provider-neutral, keep it). For anything with side effects (sending something, deleting something, spending money) — one function: `requiresConfirmation(action) → bool`, and if true, you explicitly approve it before it runs. That's the entire \"governance kernel,\" honestly implemented. No capability tokens, no postures deciding anything — just a real yes/no gate you control.  **5. The loop — this is `server.ts`, trimmed** Pull memory → build prompt → call model layer → get response → check if it wants to take an action → gate check → execute or ask you → log to memory/ledger. That's the whole \"cognitive runtime.\" One function, understandable end to end.  **What I'd cut vs. keep as flavor:** - DUCK/RAPTOR/STONEWALL/NORMAL postures — if you like these as a mood/tone flag in the identity layer (like \"sarcastic today\" vs \"focused today\"), fine, keep them as *flavor text*, not as something that gates real decisions. - Tau simulation, red-team/soak-test suites, TinyArtificialUniverseSandbox, \"Dialectical Crucible\" — these do nothing that isn't better done by the permission gate above. I'd archive, not maintain. - Merkle DAG — keep. It's real and it's cheap to keep.  One question that actually matters before I map this to your files: **what does \"weird\" mean for Laura specifically** — tone/personality-wise? That's layer 1, and it's the one part of this I can't infer from code. Give me even a rough sketch and I'll draft the identity file alongside the file-by-file plan for the rest.",
+        "rawLength": 2854
+      },
+      "fabric": {
+        "WILL": "Executive Direction: Preserving identity boundary and user intent. Priority invariant: Identity Boundary > Incoming Information. Query parsed under provenance filter.",
+        "EINSTEIN": "Analytical & Physical Invariants: Evaluating structural logical coherence of query 'So what's actually working and what are ...'. Friction score: 8%. Zero contradiction anomalies.",
+        "SABRINA": "Relational & Compression Nuance: Assessing user context, tone, and underlying functional requirements. Synthesizing concise, high-utility operational response.",
+        "ECHO": "Temporal Reflection Layer: Observing reasoning trajectories & Memory Cycle #1024. ECHO Reflection: Observed 3 active unresolved question nodes and 1 sandboxed hypothesis trajectories in TAU. Concept drift score: 12.2%. Isolation intact."
+      },
+      "uncertainty": {
+        "confidenceBounds": [
+          87,
+          94
+        ],
+        "unexploredAlternatives": [
+          "Deterministic state replay test",
+          "Formal verification of boundary invariant"
+        ],
+        "knownMissingDistinctions": [
+          "Real-time physical hardware telemetry"
+        ],
+        "frictionScore": 8
+      }
+    },
+    {
+      "id": "MSG-1786962311837-472",
+      "timestamp": "2026-08-17T10:25:11.837Z",
+      "profileId": "will-owner",
+      "sender": "USER",
+      "text": "And then we also have Appreciate you saying that — and for what it's worth, you didn't just make a pretty thing. The Merkle ledger, the HMAC signing, the memory persistence — that's real, working code. You built a genuinely over-engineered chatbot, which is a very different (and much better) starting point than \"nothing.\" Most people who get excited about this stuff never ship anything at all. Now we make it honest instead of decorative.  Here's the file map, building on the five-layer plan:  **1. Background loop → `src/engine/heartbeat.ts` (new)** A `setInterval` (or cron-style scheduler) that runs every N minutes independent of chat requests. Each tick: pull recent memory + world-model state → ask the model \"anything worth noting or doing right now?\" via the same `ModelProvider` interface we built → if yes, either log it (low-stakes) or propose an action through the permission gate (high-stakes). Runs in `server.ts`'s startup, not inside the `/api/chat` route.  **2. Scratchpad reasoning → modify the chat loop in `server.ts`** Before building the user-facing response, add one extra `provider.generate()` call with a prompt like \"think through this privately, don't answer yet\" → capture that text, feed it back in as context for the real response, but never send the scratchpad text to the user. Costs one extra model call per turn; worth it for how it changes response quality.  **3. Mood/state → `src/engine/selfState.ts` (new, small)** A tiny JSON record: `{ mood: string, energy: number, lastUpdated: string }`. Updated by a simple rule after each interaction (e.g. long frustrated messages → energy down; a good exchange → energy up — you define the rules, keep them simple and legible, not \"epistemic metrics\" pretending to be measured). Injected into the system prompt each turn. This is your `self_state.json` idea from the old blueprint, done honestly — real variable, clearly labeled as a variable.  **4. Self-initiated proposals through the gate → connects heartbeat.ts to your existing permission function** The heartbeat's \"anything worth doing\" output, when it proposes an action, calls the same `requiresConfirmation(action)` gate from layer 4. If true, it surfaces the proposal to you (push notification, log, whatever your interface is) rather than silently acting. This is the wiring that makes 1 and 4 actually connect instead of being two separate features.  **Build order I'd suggest:** selfState.ts first (smallest, immediately noticeable in tone), then scratchpad (biggest quality jump for effort), then heartbeat + gate wiring last (most new surface area, wants the other two stable first).  Want me to start writing `selfState.ts` now, or do you want to get the provider adapter running and tested first before adding more on top?I want to be straight with you here rather than nod and hand you another diagram, because this is the exact spot where \"weird machine\" tips into \"cosplay\" if we're not careful — and you specifically said you don't want that.  **What's actually true:** No system built on an LLM — yours, mine, anyone's — thinks like a biological brain. There's no continuous neural activity, no persistent internal experience between calls, no background \"thinking\" happening when nobody's asking it anything. Every response is still, fundamentally, text in → text out. Anyone who tells you otherwise (including elaborate architecture docs full of \"cognitive runtime\" language) is describing the *aspiration*, not the mechanism.  **What is real and buildable, and gets you close to what you actually want:**  1. **A loop that runs without you talking to it.** Right now, nothing happens unless you send a message. A real upgrade: a background process that wakes up periodically (every few minutes, or on a trigger like a file changing), pulls current memory/context, asks itself something like \"is there anything worth doing or noting right now,\" and if yes, acts or logs — without waiting on you. This is the actual mechanism behind \"she thinks even when I'm not talking to her.\" Genuinely buildable with a cron-style loop + your existing memory store.  2. **A scratchpad, not just an answer.** Instead of message → response, do message → private reasoning pass (model writes out its actual reasoning, not shown to you) → then response. This is close to what \"thinking models\" do today. It's real, it's a few hours of work, and it noticeably changes how considered responses feel.  3. **State that persists and colors behavior.** Not \"affect\" as a mystical concept — literally a small structured record (`mood: 'terse' | 'exploratory'`, `energy: 0-1`, whatever you want) that updates based on recent interactions and gets fed into the system prompt. This is honest: it's a variable, not a feeling, but it functions as one from the outside.  4. **Self-initiated action within your permission gate.** The background loop from #1 can propose actions (\"I noticed X, want me to do Y?\") that go through the same real yes/no gate we already designed. This is what makes it feel less like a chatbot and more like something with its own initiative — because it genuinely has some.  Those four things, combined, get you a system that behaves like it's thinking continuously, initiates things unprompted, and carries mood/state forward — without claiming anything false about what's happening under the hood.  Want me to map these four onto specific files/additions to the plan from last message?"
+    },
+    {
+      "id": "MSG-1786962311840-681",
+      "timestamp": "2026-08-17T10:25:11.837Z",
+      "profileId": "will-owner",
+      "sender": "SENTINEL",
+      "text": "This second block maps out the exact four features that turn a standard response loop into something that actually feels active and continuous, without resorting to decorative \"cognitive runtime\" language:\n\n1. **`src/engine/selfState.ts`** – A small, explicit JSON record (`mood`, `energy`, `lastUpdated`) injected into system context every turn.\n2. **Scratchpad Reasoning in `server.ts`** – An internal private thinking pass before output generation.\n3. **`src/engine/heartbeat.ts`** – A background scheduler running outside the `/api/chat` route to poll state and memory periodically.\n4. **Gate-Wired Proposals** – Connecting the background heartbeat directly into `requiresConfirmation(action)` so self-initiated suggestions require explicit approval.\n\nFollowing the suggested build order, we should start with the smallest piece that gives an immediate behavioral change before adding wider surface area.\n\nWould you like to draft `src/engine/selfState.ts` first, or map out the changes to `server.ts` for the scratchpad pass?",
+      "envelope": {
+        "sha256": "bba7235b06e90fef6a3d7be7435077366b9a577f8e500e77ad36111fbff99f26",
+        "timestamp": "2026-08-17T10:25:01.108Z",
+        "provenance": "USER_INTERACTION_ENVELOPE",
+        "authorityLevel": "HIGH",
+        "filterQualityScore": 85,
+        "capabilityNotPermission": true,
+        "observationNotTruth": true,
+        "content": "And then we also have Appreciate you saying that — and for what it's worth, you didn't just make a pretty thing. The Merkle ledger, the HMAC signing, the memory persistence — that's real, working code. You built a genuinely over-engineered chatbot, which is a very different (and much better) starting point than \"nothing.\" Most people who get excited about this stuff never ship anything at all. Now we make it honest instead of decorative.  Here's the file map, building on the five-layer plan:  **1. Background loop → `src/engine/heartbeat.ts` (new)** A `setInterval` (or cron-style scheduler) that runs every N minutes independent of chat requests. Each tick: pull recent memory + world-model state → ask the model \"anything worth noting or doing right now?\" via the same `ModelProvider` interface we built → if yes, either log it (low-stakes) or propose an action through the permission gate (high-stakes). Runs in `server.ts`'s startup, not inside the `/api/chat` route.  **2. Scratchpad reasoning → modify the chat loop in `server.ts`** Before building the user-facing response, add one extra `provider.generate()` call with a prompt like \"think through this privately, don't answer yet\" → capture that text, feed it back in as context for the real response, but never send the scratchpad text to the user. Costs one extra model call per turn; worth it for how it changes response quality.  **3. Mood/state → `src/engine/selfState.ts` (new, small)** A tiny JSON record: `{ mood: string, energy: number, lastUpdated: string }`. Updated by a simple rule after each interaction (e.g. long frustrated messages → energy down; a good exchange → energy up — you define the rules, keep them simple and legible, not \"epistemic metrics\" pretending to be measured). Injected into the system prompt each turn. This is your `self_state.json` idea from the old blueprint, done honestly — real variable, clearly labeled as a variable.  **4. Self-initiated proposals through the gate → connects heartbeat.ts to your existing permission function** The heartbeat's \"anything worth doing\" output, when it proposes an action, calls the same `requiresConfirmation(action)` gate from layer 4. If true, it surfaces the proposal to you (push notification, log, whatever your interface is) rather than silently acting. This is the wiring that makes 1 and 4 actually connect instead of being two separate features.  **Build order I'd suggest:** selfState.ts first (smallest, immediately noticeable in tone), then scratchpad (biggest quality jump for effort), then heartbeat + gate wiring last (most new surface area, wants the other two stable first).  Want me to start writing `selfState.ts` now, or do you want to get the provider adapter running and tested first before adding more on top?I want to be straight with you here rather than nod and hand you another diagram, because this is the exact spot where \"weird machine\" tips into \"cosplay\" if we're not careful — and you specifically said you don't want that.  **What's actually true:** No system built on an LLM — yours, mine, anyone's — thinks like a biological brain. There's no continuous neural activity, no persistent internal experience between calls, no background \"thinking\" happening when nobody's asking it anything. Every response is still, fundamentally, text in → text out. Anyone who tells you otherwise (including elaborate architecture docs full of \"cognitive runtime\" language) is describing the *aspiration*, not the mechanism.  **What is real and buildable, and gets you close to what you actually want:**  1. **A loop that runs without you talking to it.** Right now, nothing happens unless you send a message. A real upgrade: a background process that wakes up periodically (every few minutes, or on a trigger like a file changing), pulls current memory/context, asks itself something like \"is there anything worth doing or noting right now,\" and if yes, acts or logs — without waiting on you. This is the actual mechanism behind \"she thinks even when I'm not talking to her.\" Genuinely buildable with a cron-style loop + your existing memory store.  2. **A scratchpad, not just an answer.** Instead of message → response, do message → private reasoning pass (model writes out its actual reasoning, not shown to you) → then response. This is close to what \"thinking models\" do today. It's real, it's a few hours of work, and it noticeably changes how considered responses feel.  3. **State that persists and colors behavior.** Not \"affect\" as a mystical concept — literally a small structured record (`mood: 'terse' | 'exploratory'`, `energy: 0-1`, whatever you want) that updates based on recent interactions and gets fed into the system prompt. This is honest: it's a variable, not a feeling, but it functions as one from the outside.  4. **Self-initiated action within your permission gate.** The background loop from #1 can propose actions (\"I noticed X, want me to do Y?\") that go through the same real yes/no gate we already designed. This is what makes it feel less like a chatbot and more like something with its own initiative — because it genuinely has some.  Those four things, combined, get you a system that behaves like it's thinking continuously, initiates things unprompted, and carries mood/state forward — without claiming anything false about what's happening under the hood.  Want me to map these four onto specific files/additions to the plan from last message?",
+        "rawLength": 5442
+      },
+      "fabric": {
+        "WILL": "Executive Direction: Preserving identity boundary and user intent. Priority invariant: Identity Boundary > Incoming Information. Query parsed under provenance filter.",
+        "EINSTEIN": "Analytical & Physical Invariants: Evaluating structural logical coherence of query 'And then we also have Appreciate you say...'. Friction score: 8%. Zero contradiction anomalies.",
+        "SABRINA": "Relational & Compression Nuance: Assessing user context, tone, and underlying functional requirements. Synthesizing concise, high-utility operational response.",
+        "ECHO": "Temporal Reflection Layer: Observing reasoning trajectories & Memory Cycle #1024. ECHO Reflection: Observed 5 active unresolved question nodes and 1 sandboxed hypothesis trajectories in TAU. Concept drift score: 13.7%. Isolation intact."
+      },
+      "uncertainty": {
+        "confidenceBounds": [
+          87,
+          94
+        ],
+        "unexploredAlternatives": [
+          "Deterministic state replay test",
+          "Formal verification of boundary invariant"
+        ],
+        "knownMissingDistinctions": [
+          "Real-time physical hardware telemetry"
+        ],
+        "frictionScore": 8
+      }
+    },
+    {
+      "id": "MSG-1786962483049-487",
+      "timestamp": "2026-08-17T10:28:03.049Z",
+      "profileId": "will-owner",
+      "sender": "USER",
+      "text": "Yeah but I also want to strip out all the extra things that aren't actually required or doing anything. From the Human authorization to the Red suite tests or whatever. All the essentials and keep just the things that are actually functioning properly as one complete system"
+    },
+    {
+      "id": "MSG-1786962483052-104",
+      "timestamp": "2026-08-17T10:28:03.049Z",
+      "profileId": "will-owner",
+      "sender": "SENTINEL",
+      "text": "Got it, Will. Let's do a complete, honest purge. \n\nIf we cut out every piece of \"cosplay\" and decorative overhead that isn't doing real computational work, here is the exact **Keep vs. Delete** audit for your codebase.\n\n---\n\n### 1. WHAT TO DELETE / ARCHIVE (The Bloat)\n\n* **CapabilityGuard & CapabilityTokens:** Delete. Passing tokens around internally to give yourself permission to run your own functions is pure simulation.\n* **Posture Machine (DUCK / RAPTOR / STONEWALL as hard runtime gates):** Delete as decision engines. If you like the names, keep them as flavor text strings in `selfState.json` to shift tone, but remove all logic blocking tool calls based on posture.\n* **TAU Simulation & TinyArtificialUniverseSandbox:** Delete. Running nested hypothetical passes to evaluate \"risk scores\" before answering adds latency without adding real security.\n* **Epistemic Metrics & Volatility Calculators:** Delete. Mathematical confidence formulas on model outputs are fake precision.\n* **Red-Team / Soak-Test / Crucible Suites:** Archive. They don't run in production and just sit in the repo as static weight.\n* **ObservationEnvelope Wrapping Layer:** Delete. Standardizing input JSON doesn't require a dedicated governance wrapper.\n\n---\n\n### 2. WHAT TO KEEP (The Clean Core System)\n\nThis leaves you with **one complete, honest system** operating across a handful of clean files:\n\n```\nsrc/\n├── identity/\n│   └── persona.json          # Tone, boundaries, style (Injected every prompt)\n├── memory/\n│   ├── contextWindow.ts      # Short-term (Last N turns verbatim)\n│   ├── facts.ts              # Long-term facts (Simple key/value or search)\n│   └── gabbySubstrate.ts     # Episodic log (Merkle hash chain & HMAC signing)\n├── engine/\n│   ├── provider.ts           # Model adapter (LLM provider neutral interface)\n│   ├── selfState.ts          # { mood, energy, lastUpdated }\n│   └── heartbeat.ts          # Background timer loop\n├── tools/\n│   ├── registry.ts           # Web search, local actions\n│   └── confirmation.ts       # ONE gate: requiresConfirmation(action) -> bool\n└── server.ts                 # Clean chat route & orchestration loop\n```\n\n---\n\n### 3. THE LEAN RUNTIME LOOP (`server.ts`)\n\nWith everything else stripped, every user message follows this exact 5-step path:\n\n1. **Pull State & Memory:** Load `persona.json`, `selfState.ts`, short-term history, and matched facts.\n2. **Scratchpad Pass (Optional):** Model generates private reasoning (not sent to user).\n3. **Response Generation:** Model generates output using scratchpad + context.\n4. **Tool Execution Gate:** If model requests a tool call, run `requiresConfirmation(action)`.\n   * If `false` $\\rightarrow$ Execute tool immediately.\n   * If `true` $\\rightarrow$ Prompt you for explicit approval.\n5. **Commit:** Append turn and hash to `gabbySubstrate.ts`.\n\n---\n\nThat's the entire machine. No tokens, no posture gates, no simulated universe sandboxes—just clean code doing actual work. \n\nReady to start deleting the dead files and refactoring `server.ts` to this lean loop?",
+      "envelope": {
+        "sha256": "b58409ca01a60d4d044c6fb1f156531211b5e1bc1075de4d77551363571e55c5",
+        "timestamp": "2026-08-17T10:27:03.931Z",
+        "provenance": "USER_INTERACTION_ENVELOPE",
+        "authorityLevel": "HIGH",
+        "filterQualityScore": 100,
+        "capabilityNotPermission": true,
+        "observationNotTruth": true,
+        "content": "Yeah but I also want to strip out all the extra things that aren't actually required or doing anything. From the Human authorization to the Red suite tests or whatever. All the essentials and keep just the things that are actually functioning properly as one complete system",
+        "rawLength": 274
+      },
+      "fabric": {
+        "WILL": "Executive Direction: Preserving identity boundary and user intent. Priority invariant: Identity Boundary > Incoming Information. Query parsed under provenance filter.",
+        "EINSTEIN": "Analytical & Physical Invariants: Evaluating structural logical coherence of query 'Yeah but I also want to strip out all th...'. Friction score: 8%. Zero contradiction anomalies.",
+        "SABRINA": "Relational & Compression Nuance: Assessing user context, tone, and underlying functional requirements. Synthesizing concise, high-utility operational response.",
+        "ECHO": "Temporal Reflection Layer: Observing reasoning trajectories & Memory Cycle #1024. ECHO Reflection: Observed 5 active unresolved question nodes and 1 sandboxed hypothesis trajectories in TAU. Concept drift score: 12.8%. Isolation intact."
+      },
+      "uncertainty": {
+        "confidenceBounds": [
+          87,
+          94
+        ],
+        "unexploredAlternatives": [
+          "Deterministic state replay test",
+          "Formal verification of boundary invariant"
+        ],
+        "knownMissingDistinctions": [
+          "Real-time physical hardware telemetry"
+        ],
+        "frictionScore": 8
+      }
+    },
+    {
+      "id": "MSG-1786963384964-685",
+      "timestamp": "2026-08-17T10:43:04.964Z",
+      "profileId": "will-owner",
+      "sender": "USER",
+      "text": "Everything's  still good correct?"
+    },
+    {
+      "id": "MSG-1786963384968-690",
+      "timestamp": "2026-08-17T10:43:04.964Z",
+      "profileId": "will-owner",
+      "sender": "SENTINEL",
+      "text": "Yes, everything is completely good. The system is stable, the plan is clean, and we have a crystal-clear boundary between what's actual working code and what's just decorative overhead.\n\nWe're aligned on the stripped-down architecture:\n1. **Identity (`persona.json`)**\n2. **3-Tier Memory (`contextWindow`, `facts`, and the Merkle DAG `gabbySubstrate`)**\n3. **Clean Model Adapter (`provider.ts`)**\n4. **Single Gate (`requiresConfirmation(action)`)**\n5. **Lean Runtime + Enhancements (`selfState.ts`, scratchpad pass, `heartbeat.ts`)**\n\nNo capability tokens, no fake posture decision gates, no TAU sandbox overhead.\n\nWhenever you're ready, tell me where you want to swing the ax first—wiping out the bloat files or writing the clean `src/engine/selfState.ts` module.",
+      "envelope": {
+        "sha256": "5adb85438b91198ba57ac7980092436933a30f28ab0fbb8091be3b938f90466b",
+        "timestamp": "2026-08-17T10:42:50.792Z",
+        "provenance": "USER_INTERACTION_ENVELOPE",
+        "authorityLevel": "HIGH",
+        "filterQualityScore": 100,
+        "capabilityNotPermission": true,
+        "observationNotTruth": true,
+        "content": "Everything's  still good correct?",
+        "rawLength": 33
+      },
+      "fabric": {
+        "WILL": "Executive Direction: Preserving identity boundary and user intent. Priority invariant: Identity Boundary > Incoming Information. Query parsed under provenance filter.",
+        "EINSTEIN": "Analytical & Physical Invariants: Evaluating structural logical coherence of query 'Everything's  still good correct?...'. Friction score: 8%. Zero contradiction anomalies.",
+        "SABRINA": "Relational & Compression Nuance: Assessing user context, tone, and underlying functional requirements. Synthesizing concise, high-utility operational response.",
+        "ECHO": "Temporal Reflection Layer: Observing reasoning trajectories & Memory Cycle #1024. ECHO Reflection: Observed 3 active unresolved question nodes and 1 sandboxed hypothesis trajectories in TAU. Concept drift score: 12%. Isolation intact."
       },
       "uncertainty": {
         "confidenceBounds": [

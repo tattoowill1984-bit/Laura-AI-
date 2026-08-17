@@ -42,6 +42,17 @@ import {
 
 dotenv.config();
 
+// Initialize Sovereign 5-Layer Architecture & Substrate Core
+import { selfStateManager } from './src/engine/selfState';
+import { heartbeatLoop } from './src/engine/heartbeat';
+import { activeContextWindow } from './src/memory/contextWindow';
+import { factsVault } from './src/memory/facts';
+import { modelProviderAdapter } from './src/engine/provider';
+import { toolRegistry } from './src/tools/registry';
+import { requiresConfirmation } from './src/tools/confirmation';
+
+heartbeatLoop.start();
+
 // Initialize Anamnesis Sentinel Core & Gabby Substrate
 const kernel = new SentinelMutationKernel();
 const gabbySubstrate = new GabbyCognitiveSubstrate();
@@ -175,10 +186,62 @@ async function startServer() {
         commitReceipts: kernel.getCommitReceipts(),
         errorObjects: kernel.getErrorObjects(),
         proposals: kernel.getProposals(),
+        selfState: selfStateManager.getState(),
       });
     } catch (err: any) {
       console.error('[API Kernel State Error]', err);
       res.status(500).json({ error: err?.message || 'Kernel state retrieval error' });
+    }
+  });
+
+  // 2.1 Self-Model & Heartbeat State
+  app.get('/api/self/state', (req, res) => {
+    try {
+      res.json({
+        selfState: selfStateManager.getState(),
+        heartbeat: heartbeatLoop.getPulseMetrics(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Self state retrieval error' });
+    }
+  });
+
+  app.post('/api/self/state', (req, res) => {
+    try {
+      const updated = selfStateManager.updateState(req.body || {});
+      res.json({ success: true, selfState: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Self state update error' });
+    }
+  });
+
+  // 2.2 Tools & Action Gate
+  app.get('/api/tools/list', (req, res) => {
+    try {
+      res.json({ tools: toolRegistry.listTools() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Tool list error' });
+    }
+  });
+
+  app.post('/api/tools/execute', async (req, res) => {
+    try {
+      const { toolName, args } = req.body || {};
+      if (!toolName) {
+        return res.status(400).json({ error: 'toolName is required' });
+      }
+
+      if (requiresConfirmation(toolName)) {
+        return res.status(403).json({
+          requiresConfirmation: true,
+          message: `Action '${toolName}' requires explicit human confirmation before execution.`,
+        });
+      }
+
+      const result = await toolRegistry.executeTool(toolName, args || {});
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Tool execution error' });
     }
   });
 

@@ -16,7 +16,7 @@ export const ProposalApprovalModal: React.FC<ProposalApprovalModalProps> = ({
   onExecuteProposal,
 }) => {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(proposals[0] || null);
-  const [proofSignature, setProofSignature] = useState<string>('tattoowill1984-master-key');
+  const [proofSignature, setProofSignature] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
