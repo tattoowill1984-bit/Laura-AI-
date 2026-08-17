@@ -5,11 +5,12 @@
 
 import { externalRetrievalGateway } from '../engine/externalRetrievalGateway';
 import { requiresConfirmation } from './confirmation';
+import { extractionEngine } from './extractionEngine';
 
 export interface ToolDefinition {
   name: string;
   description: string;
-  category: 'SEARCH' | 'MEMORY' | 'SYSTEM' | 'MUTATION';
+  category: 'SEARCH' | 'MEMORY' | 'SYSTEM' | 'MUTATION' | 'EXTRACTION';
   execute: (args: any) => Promise<any>;
 }
 
@@ -43,6 +44,26 @@ export class ToolRegistry {
       category: 'SYSTEM',
       execute: async () => {
         return { status: 'HEALTHY', timestamp: new Date().toISOString() };
+      },
+    });
+
+    // 3. Raw PDB Molecular Extraction Tool (Offline Data Ingestion)
+    this.registerTool({
+      name: 'extract_pdb_coordinates',
+      description: 'Parses raw PDB molecular structure files into coordinate matrices & runs manifold stability check.',
+      category: 'EXTRACTION',
+      execute: async (args: { pdbText: string }) => {
+        return extractionEngine.extractPdbCoordinates(args.pdbText || '');
+      },
+    });
+
+    // 4. Raw CSV Matrix Extraction Tool (Offline Data Ingestion)
+    this.registerTool({
+      name: 'extract_csv_matrix',
+      description: 'Parses raw CSV numerical datasets into structured matrices & calculates dimensional consistency.',
+      category: 'EXTRACTION',
+      execute: async (args: { csvText: string }) => {
+        return extractionEngine.extractCsvMatrix(args.csvText || '');
       },
     });
   }

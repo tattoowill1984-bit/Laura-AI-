@@ -253,6 +253,15 @@ export interface HealthMetrics {
   uptimeSeconds: number;
 }
 
+export interface ExecutionMetadata {
+  provider: string;
+  model: string;
+  execution: string;
+  fallback: boolean;
+  reason: string | null;
+  toolExecution?: any;
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'USER' | 'SENTINEL' | 'SYSTEM_LOOP' | 'INTER_AI_CONSULTANT';

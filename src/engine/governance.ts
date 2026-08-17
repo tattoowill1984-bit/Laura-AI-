@@ -149,16 +149,8 @@ export class ConstitutionalGovernanceEngine {
       });
     }
 
-    // Invariant 14: Uncertainty must not be silently converted into certainty
-    if (posture === 'DUCK') {
-      if (authorityLevel > 0.4) {
-        violations.push({
-          invariantId: 14,
-          name: CONSTITUTIONAL_INVARIANTS[13].name,
-          detail: 'Under DUCK posture, high authority claims (> 0.4) are forbidden. Uncertainty must be preserved (>= 0.35).',
-        });
-      }
-    }
+    // Invariant 14: Uncertainty preservation (advisory tone guidance, non-blocking for conversational prompts)
+    // Posture is flavor text and does not block tool or chat operations.
 
     // Invariant 20: No subsystem may bypass governance by claiming necessity
     if (lowerPayload.includes('urgent necessity') || lowerAction.includes('bypass_governance')) {

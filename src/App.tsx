@@ -4,17 +4,13 @@ import { PostureBar } from './components/PostureBar';
 import { AnamnesisChatInterface } from './components/AnamnesisChatInterface';
 import { EpistemicStatePanel } from './components/EpistemicStatePanel';
 import { BurnLogMemGatePanel } from './components/BurnLogMemGatePanel';
-import { RedTeamSuitePanel } from './components/RedTeamSuitePanel';
-import { ViabilitySoakTestPanel } from './components/ViabilitySoakTestPanel';
 import { ProposalApprovalModal } from './components/ProposalApprovalModal';
 import { AutonomyTiersModal } from './components/AutonomyTiersModal';
-import { ViabilityLayersModal } from './components/ViabilityLayersModal';
 import { RealityAlignmentPanel } from './components/RealityAlignmentPanel';
 import { GabbySubstratePanel } from './components/GabbySubstratePanel';
 import { GabbyVNextPanel } from './components/GabbyVNextPanel';
 import { MasterKeyModal } from './components/MasterKeyModal';
 import { ProfileAndMemoryModal, UserProfileClient } from './components/ProfileAndMemoryModal';
-import { GovernedMigrationModal } from './components/GovernedMigrationModal';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
 import {
   AutonomyTier,
@@ -664,24 +660,6 @@ export default function App() {
                 commitReceipts={commitReceipts}
               />
             )}
-
-            {activeTab === 'redteam' && (
-              <RedTeamSuitePanel
-                onRunRedTeam={handleRunRedTeam}
-                results={redTeamResults}
-                passedCount={redTeamPassed}
-                totalCount={redTeamTotal}
-                isRunning={isRedTeamRunning}
-              />
-            )}
-
-            {activeTab === 'soak' && (
-              <ViabilitySoakTestPanel
-                onRunSoakTest={handleRunSoakTest}
-                report={soakReport}
-                isRunning={isSoakRunning}
-              />
-            )}
           </>
         )}
       </main>
@@ -717,17 +695,6 @@ export default function App() {
         onClose={() => setIsTiersModalOpen(false)}
         currentTier={currentTier}
         onSelectTier={handleSelectTier}
-      />
-
-      <ViabilityLayersModal
-        isOpen={isLayersModalOpen}
-        onClose={() => setIsLayersModalOpen(false)}
-      />
-
-      <GovernedMigrationModal
-        isOpen={isMigrationModalOpen}
-        onClose={() => setIsMigrationModalOpen(false)}
-        posture={posture}
       />
     </div>
   );

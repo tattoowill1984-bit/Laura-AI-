@@ -183,16 +183,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {onOpenMigrationModal && (
-            <button
-              onClick={onOpenMigrationModal}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all cursor-pointer"
-            >
-              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-              Migration & Web
-            </button>
-          )}
-
           <button
             onClick={onOpenProposalsModal}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
@@ -281,28 +271,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Shield className="w-3.5 h-3.5" />
             Burn & MemGate Log
-          </button>
-          <button
-            onClick={() => setActiveTab('redteam')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'redteam'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            Red-Team Audit
-          </button>
-          <button
-            onClick={() => setActiveTab('soak')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'soak'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            Soak Test
           </button>
         </nav>
       </div>

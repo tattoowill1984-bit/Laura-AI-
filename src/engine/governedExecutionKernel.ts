@@ -4,6 +4,8 @@ import { GabbyCognitiveSubstrate, PermissionNamespace, EvidenceSourceTier } from
 import { toolCapabilityRegistry, CapabilityId } from './toolCapabilityRegistry';
 import { CONSTITUTIONAL_INVARIANTS, ConstitutionalGovernanceEngine, InvariantViolation } from './governance';
 import { reasoningBudgetEngine } from './vnext/reasoningBudget';
+import { webRetrievalAdapter } from './webRetrievalAdapter';
+import { executeWebSearch, fetchWebPage } from './tools/webTools';
 
 // ---------------------------------------------------------------------------
 // TYPES & INTERFACES
@@ -383,6 +385,29 @@ EffectorRegistry.registerEffector('CHANGE_POSTURE', async (target: string, paylo
 
 EffectorRegistry.registerEffector('READ_STATE', async (target: string) => {
   return { status: 'STATE_READ', target };
+});
+
+EffectorRegistry.registerEffector('EXTERNAL_RETRIEVAL', async (target: string, payload: any) => {
+  const query = payload?.query || target;
+  if (!query) {
+    throw new Error('Query required for EXTERNAL_RETRIEVAL effector');
+  }
+  return await webRetrievalAdapter.executeWebSearch(query);
+});
+
+EffectorRegistry.registerEffector('SEARCH_PUBLIC_INFO', async (target: string, payload: any) => {
+  const query = payload?.query || target;
+  return await webRetrievalAdapter.executeWebSearch(query);
+});
+
+EffectorRegistry.registerEffector('WEB_SEARCH', async (target: string, payload: any) => {
+  const query = payload?.query || target;
+  return await executeWebSearch(query);
+});
+
+EffectorRegistry.registerEffector('WEB_FETCH', async (target: string, payload: any) => {
+  const url = payload?.url || target;
+  return await fetchWebPage(url);
 });
 
 export class ExecutionGate {

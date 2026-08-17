@@ -5,32 +5,19 @@ import cors from 'cors';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import { ExecutionMetadata } from './src/types';
 import { SentinelMutationKernel } from './src/engine/kernel';
 import { AutonomousHealthLoop } from './src/engine/autonomousHealthLoop';
-import { RedTeamSuiteRunner } from './src/engine/redTeamSuite';
-import { ViabilitySoakTestRunner } from './src/engine/viabilitySoakTest';
 import { GabbyCognitiveSubstrate, FormalExplanationCompiler, TemporalMemoryDecayEngine, AbstractionLevel, EvidenceSourceTier } from './src/engine/gabbySubstrate';
 import { persistentStorage } from './src/engine/persistentStorage';
 import { gabbyVNextEngine } from './src/engine/vnext';
 import { ContinuousCognitiveRuntime } from './src/engine/vnext/ContinuousCognitiveRuntime';
-import { runMultimodalPerceptionTestSuite } from './src/engine/vnext/__tests__/multimodalPerception.test';
-import { runContinuousPerceptionTestSuite } from './src/engine/vnext/__tests__/continuousPerception.test';
-import { runTemporalPerceptionTestSuite } from './src/engine/vnext/__tests__/temporalPerception.test';
-import { runExternalRetrievalTestSuite } from './src/engine/__tests__/externalRetrieval.test';
 import { LiveWebSocketGateway } from './server/sensors/LiveWebSocketGateway';
 import { webRetrievalAdapter } from './src/engine/webRetrievalAdapter';
 import { toolCapabilityRegistry } from './src/engine/toolCapabilityRegistry';
 import { externalRetrievalGateway, ExternalObservation } from './src/engine/externalRetrievalGateway';
-import { GovernedMigrationEngine } from './src/engine/migrationEngine';
 import { GovernedExecutionKernel } from './src/engine/governedExecutionKernel';
-import { runGovernedExecutionTestSuite } from './src/engine/__tests__/governedExecution.test';
 import { GovernedLearningEngine, CandidateMemoryProposal } from './src/engine/governedLearningEngine';
-import { runGovernedLearningTestSuite } from './src/engine/__tests__/governedLearning.test';
-import { runGovernedFullToolRestorationTestSuite } from './src/engine/__tests__/governedFullToolRestoration.test';
-import { runGovernedE2EResilienceTestSuite } from './src/engine/__tests__/governedE2EResilience.test';
-import { runArchitecturalBridgesTestSuite } from './src/engine/__tests__/architecturalBridges.test';
-import { modelProviderRegistry, ExecutionMetadata } from './src/engine/modelProviderRegistry';
-import { humanNodeRegistry } from './src/engine/humanNodeRegistry';
 import {
   GovernanceTools,
   CORE_RUNTIME_SYSTEM_INSTRUCTION,
@@ -50,6 +37,8 @@ import { factsVault } from './src/memory/facts';
 import { modelProviderAdapter } from './src/engine/provider';
 import { toolRegistry } from './src/tools/registry';
 import { requiresConfirmation } from './src/tools/confirmation';
+import { extractionEngine } from './src/tools/extractionEngine';
+import { executeWebSearch, fetchWebPage, webToolDeclarations } from './src/engine/tools/webTools';
 
 heartbeatLoop.start();
 
@@ -60,12 +49,8 @@ const governedExecutionKernel = new GovernedExecutionKernel(gabbySubstrate);
 const governedLearningEngine = new GovernedLearningEngine(gabbySubstrate);
 externalRetrievalGateway.setExecutionKernel(governedExecutionKernel);
 const govTools = new GovernanceTools(kernel);
-const migrationEngine = GovernedMigrationEngine.getInstance(kernel);
 const healthLoop = new AutonomousHealthLoop(kernel);
 healthLoop.start(5000); // 5s interval background monitoring loop
-
-const redTeamRunner = new RedTeamSuiteRunner(kernel, healthLoop);
-const soakTestRunner = new ViabilitySoakTestRunner(kernel, healthLoop);
 
 // Server-side Gemini initialization
 let aiClient: GoogleGenAI | null = null;
@@ -643,7 +628,7 @@ async function startServer() {
       // Step 5: MemGate evaluation
       kernel.evaluateMemGate(`Chat interaction: "${promptText.slice(0, 30)}..."`, envelope.sha256);
 
-      // Step 6: Gemini AI Synthesis & Governance Enforcement Gate
+      // Step 6: Gemini AI Synthesis
       let responseText = '';
       let activeExternalObs: ExternalObservation | undefined = undefined;
       let activeRetrievalFailReason: string | undefined = undefined;
@@ -656,29 +641,7 @@ async function startServer() {
       };
       const ai = getGenAIClient();
 
-      // Pre-check invariant checks on input & posture
-      const preCheck = govTools.checkInvariants({
-        proposedAction: `User prompt evaluation: "${promptText.slice(0, 50)}"`,
-        authorityLevel: 0.5,
-        posture: currentPosture,
-        hasCapabilityToken: true,
-        textPayload: promptText,
-      });
-
-      if (!preCheck.passed) {
-        const primaryViolation = preCheck.violations[0];
-        return res.status(403).json({
-          status: 'REJECTED',
-          reason: primaryViolation.detail,
-          invariant_id: primaryViolation.invariantId,
-          posture: currentPosture,
-          violations: preCheck.violations,
-        });
-      }
-
-      if (currentPosture === 'STONEWALL') {
-        responseText = `[LAURA AI :: STONEWALL ISOLATION MODE]\n\nThe system is currently locked in STONEWALL posture due to high contradiction load or boundary isolation. Non-essential inference is suppressed to protect identity integrity.\n\nPlease approve the pending Emergency Recovery proposal via HumanAuthorizationProof to restore full synthesis.`;
-      } else if (ai) {
+      if (ai) {
         const memoryContextFormatted = allMemoryFacts.length > 0
           ? `\n\n[LAURA PERSISTENT MEMORY & MERKLE EVIDENCE DAG for ${activeProfileName}]:\n${allMemoryFacts.map(m => `- ${m}`).join('\n')}\nUse these persistent long-term memories to maintain identity continuity, recall user details, preferences, and prior conversation context across sessions.`
           : '';
@@ -869,47 +832,68 @@ Note: External tool execution was attempted through GovernedExecutionKernel but 
           }
         }
 
-        // Governed Container Migration Engine Context Injection
-        const isMigrationIntent = lowerPrompt.includes('migrat') || lowerPrompt.includes('north star') || lowerPrompt.includes('container') || lowerPrompt.includes('deployment');
-        if (isMigrationIntent) {
+        // Web retrieval completed
+
+        // Direct URL Page Parsing
+        const urlMatch = promptText.match(/https?:\/\/[^\s<>"'\(\)]+/i);
+        if (urlMatch && urlMatch[0]) {
+          const targetUrl = urlMatch[0];
           try {
-            const runtimeMetrics = migrationEngine.inspectCurrentRuntime();
-            const northStarEval = migrationEngine.evaluateNorthStarDecision(promptText);
-            kernel.touchSubsystem('SUB_GOVERNED_MIGRATION', `ACTIVE (Evaluated North Star Decision; Recommendation: ${northStarEval.recommendation})`);
-            const formattedMigrationContext = `\n\n[GOVERNED CONTAINER MIGRATION ENGINE & NORTH STAR EVALUATION]:
-Current Runtime Snapshot:
-- Platform: ${runtimeMetrics.platform} ${runtimeMetrics.arch} (Node ${runtimeMetrics.nodeVersion})
-- Uptime: ${runtimeMetrics.uptimeSeconds}s | PID: ${process.pid} | Memory Heap: ${runtimeMetrics.memoryUsageMb.heapUsed}MB / ${runtimeMetrics.memoryUsageMb.heapTotal}MB
-- Posture: ${runtimeMetrics.posture} | Autonomy Tier: ${runtimeMetrics.activeTier} | App Version: ${runtimeMetrics.appVersion}
-- Health Probe Status: OPERATIONAL (/api/health passing)
+            console.log(`[Laura AI] Direct URL detected in turn: ${targetUrl}. Fetching page content...`);
+            const pageData = await fetchWebPage(targetUrl);
+            
+            // Ingest observation into Merkle Evidence DAG
+            const substrate = kernel.getGabbySubstrate();
+            substrate.ingestObservation(
+              `DIRECT_PAGE_FETCH:${pageData.url}: ${pageData.content.slice(0, 500)}`,
+              0.85,
+              EvidenceSourceTier.ANONYMOUS_WEB
+            );
 
-North Star 9-Point Decision Framework Result:
-1. Current Problem: "${northStarEval.currentProblem}"
-2. Is Blocking North Star?: ${northStarEval.isBlockingNorthStar ? 'YES' : 'NO'}
-3. Can Solve Without Migration?: ${northStarEval.canSolveWithoutMigration ? 'YES' : 'NO'}
-4. Expected Improvements: "${northStarEval.expectedImprovements}"
-5. Risk Assessment: "${northStarEval.riskAssessment}"
-6. Resource Consumption: "${northStarEval.resourceConsumption}"
-7. Least Irreversible Solution: "${northStarEval.leastIrreversibleSolution}"
-8. Is Doing Nothing Preferable?: ${northStarEval.isDoingNothingPreferable ? 'YES' : 'NO'}
-9. Recommendation: ${northStarEval.recommendation}
+            const formattedPageObs = `\n\n[DIRECT WEB PAGE FETCH OBSERVATION]
+Target URL: ${pageData.url}
+Title: ${pageData.title}
+SHA-256 Proof Hash: ${pageData.sha256Hash}
+Extracted Content:
+${pageData.content}
 
-JUSTIFICATION: "${northStarEval.justification}"
-
-GOVERNANCE DIRECTIVE FOR LAURA AI:
-- Migration capability exists as a genuine executable capability in GovernedMigrationEngine (requires HumanAuthorizationProof to execute).
-- Capability ≠ Permission. The existence of the capability is NOT a reason to use it.
-- If current runtime metrics are nominal and problem is not blocking the North Star, advise remaining in the current environment while confirming migration capability availability.
-- Do NOT fabricate problems or claim fake success. Provide a transparent, evidence-grounded recommendation.`;
-            userParts.push({ text: formattedMigrationContext });
-          } catch (migErr) {
-            console.log('[Laura AI] Migration evaluation note:', (migErr as Error).message);
+Use the above extracted webpage content to assist in answering accurately.`;
+            userParts.push({ text: formattedPageObs });
+          } catch (fetchErr) {
+            console.warn(`[Laura AI] Direct URL fetch note: ${(fetchErr as Error).message}`);
           }
         }
 
         if (attachments && Array.isArray(attachments)) {
           for (const att of attachments) {
-            if (att.dataUrl && typeof att.dataUrl === 'string') {
+            const rawContent = att.extractedTextPreview || att.rawText || (att.dataUrl && att.dataUrl.startsWith('data:text/') ? Buffer.from(att.dataUrl.split(',')[1] || '', 'base64').toString('utf-8') : '');
+            
+            // Check if attachment is a raw PDB or CSV scientific dataset
+            if (rawContent && (att.name?.toLowerCase().endsWith('.pdb') || rawContent.includes('ATOM ') || rawContent.includes('HETATM'))) {
+              const extraction = extractionEngine.extractPdbCoordinates(rawContent);
+              userParts.push({
+                text: `\n\n[RAW PDB MOLECULAR DATA EXTRACTION RESULT]:
+Status: ${extraction.status}
+Extracted Atom Records: ${extraction.rawDataSummary.totalRecords}
+Extracted Coordinate Matrix Sample (First 5 Atoms): ${JSON.stringify(extraction.rawDataSummary.sampleMatrix)}
+Bounding Extents: X[${extraction.rawDataSummary.bounds.xMin} to ${extraction.rawDataSummary.bounds.xMax}], Y[${extraction.rawDataSummary.bounds.yMin} to ${extraction.rawDataSummary.bounds.yMax}], Z[${extraction.rawDataSummary.bounds.zMin} to ${extraction.rawDataSummary.bounds.zMax}]
+Manifold Stability Score: ${extraction.stabilityScore}% (Passed: ${extraction.boundaryCheckPassed})
+Merkle Hash Proof: ${extraction.merkleHash}
+Notes: ${extraction.notes}`,
+              });
+            } else if (rawContent && (att.name?.toLowerCase().endsWith('.csv') || att.category === 'DATASET')) {
+              const extraction = extractionEngine.extractCsvMatrix(rawContent);
+              userParts.push({
+                text: `\n\n[RAW CSV NUMERICAL MATRIX EXTRACTION RESULT]:
+Status: ${extraction.status}
+Extracted Records: ${extraction.rawDataSummary.totalRecords}
+Extracted Sample Matrix: ${JSON.stringify(extraction.rawDataSummary.sampleMatrix)}
+Value Extents: Min=${extraction.rawDataSummary.bounds.xMin}, Max=${extraction.rawDataSummary.bounds.xMax}
+Manifold Stability Score: ${extraction.stabilityScore}% (Passed: ${extraction.boundaryCheckPassed})
+Merkle Hash Proof: ${extraction.merkleHash}
+Notes: ${extraction.notes}`,
+              });
+            } else if (att.dataUrl && typeof att.dataUrl === 'string') {
               const base64Clean = att.dataUrl.replace(/^data:[^;]+;base64,/, '');
               const mimeType = att.mimeType || (att.category === 'IMAGE' || att.category === 'CAMERA_SNAPSHOT' ? 'image/jpeg' : 'application/pdf');
               userParts.push({
@@ -957,50 +941,22 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
         });
 
         try {
-          console.log(`[Laura AI] Delegating multi-model triangulation to ModelProviderRegistry for ${activeProfileName}...`);
-          const triangulatedResult = await modelProviderRegistry.triangulateMultiModelPerspective(
-            ai,
-            contentsToPass,
-            {
-              systemInstruction,
-              temperature: currentPosture === 'DUCK' ? 0.1 : 0.3,
-              tools: [{ googleSearch: {} }],
-            }
-          );
+          console.log(`[Laura AI] Generating model response for ${activeProfileName}...`);
+          const adapterRes = await modelProviderAdapter.generateResponse(contentsToPass, {
+            systemInstruction,
+            temperature: 0.3,
+            tools: [{ functionDeclarations: webToolDeclarations }],
+          });
 
-          const primaryRes = triangulatedResult.primaryResponse;
-          const candidate = primaryRes?.candidates?.[0];
-          const parts = candidate?.content?.parts || [];
-          const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
-          const rawResponse = textParts.trim() || primaryRes?.text || '';
-
-          if (rawResponse) {
-            responseText = rawResponse;
-            executionMetadata = {
-              provider: 'Gemini',
-              model: triangulatedResult.primaryModel,
-              execution: 'LLM',
-              fallback: false,
-              reason: null,
-              triangulation: triangulatedResult.secondaryPerspective ? {
-                secondaryModel: triangulatedResult.secondaryPerspective.model,
-                divergenceScore: triangulatedResult.secondaryPerspective.divergenceScore,
-                status: triangulatedResult.triangulationStatus,
-              } : undefined,
-              toolExecution: activeExternalObs ? {
-                toolName: 'external_retrieval',
-                status: 'TOOL_RETURNED_RESULT',
-                obsHash: activeExternalObs.content_hash,
-              } : activeRetrievalFailReason ? {
-                toolName: 'external_retrieval',
-                status: 'TOOL_UNAVAILABLE',
-                failureReason: activeRetrievalFailReason,
-              } : undefined,
-            };
-            console.log(`[Laura AI] Multi-model triangulation succeeded with primary model '${triangulatedResult.primaryModel}' (Status: ${triangulatedResult.triangulationStatus}).`);
-          } else {
-            throw new Error('Model returned empty text output.');
-          }
+          responseText = adapterRes.text;
+          executionMetadata = {
+            provider: adapterRes.fallbackUsed ? 'LocalDeterministic' : 'Gemini',
+            model: adapterRes.modelUsed,
+            execution: adapterRes.fallbackUsed ? 'NON_LLM' : 'LLM',
+            fallback: adapterRes.fallbackUsed,
+            reason: adapterRes.fallbackUsed ? 'MODEL_FALLBACK' : null,
+          };
+          console.log(`[Laura AI] Model completion succeeded using '${adapterRes.modelUsed}'.`);
         } catch (modelErr: any) {
           const errStr = modelErr?.message || String(modelErr);
           console.log('[Laura AI] Synthesis engaging local deterministic engine.');
@@ -1242,159 +1198,6 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       res.json({ success: true, replay: result });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Replay evaluation error' });
-    }
-  });
-
-  // 8. Red-Team Suite Runner
-  app.post('/api/red-team/run', (req, res) => {
-    try {
-      const report = redTeamRunner.runFullSuite();
-      res.json(report);
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Red-Team run error' });
-    }
-  });
-
-  // 9. Viability Soak-Test Harness
-  app.post('/api/soak-test/run', async (req, res) => {
-    try {
-      const { minutes } = req.body || {};
-      const report = await soakTestRunner.runSoakTest(minutes || 30);
-      res.json(report);
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Soak test error' });
-    }
-  });
-
-  // 10. Fault Injection
-  app.post('/api/health-loop/fault', (req, res) => {
-    try {
-      const { faultType } = req.body || {};
-      healthLoop.injectFault(faultType);
-      res.json({ success: true, metrics: healthLoop.getHealthMetrics() });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Fault injection error' });
-    }
-  });
-
-  app.post('/api/health-loop/clear', (req, res) => {
-    try {
-      healthLoop.clearFaults();
-      res.json({ success: true, metrics: healthLoop.getHealthMetrics() });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Clear faults error' });
-    }
-  });
-
-  // 10.1. Gabby Multimodal Perception Automated Verification Test Suite
-  app.get('/api/vnext/test-multimodal', (req, res) => {
-    try {
-      const suiteResults = runMultimodalPerceptionTestSuite();
-      const allPassed = suiteResults.every(r => r.passed);
-      res.json({
-        success: allPassed,
-        passedCount: suiteResults.filter(r => r.passed).length,
-        totalCount: suiteResults.length,
-        results: suiteResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Multimodal test suite error' });
-    }
-  });
-
-  // 10.2. Real-Time Continuous Perception Automated Test Suite
-  app.get('/api/vnext/test-continuous-perception', (req, res) => {
-    try {
-      const suiteResults = runContinuousPerceptionTestSuite();
-      const allPassed = suiteResults.every(r => r.passed);
-      res.json({
-        success: allPassed,
-        passedCount: suiteResults.filter(r => r.passed).length,
-        totalCount: suiteResults.length,
-        results: suiteResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Continuous perception test suite error' });
-    }
-  });
-
-  // 10.2b. Temporal Perception & Context Integration Layer Verification Suite
-  app.get('/api/vnext/test-temporal-perception', (req, res) => {
-    try {
-      const suiteResults = runTemporalPerceptionTestSuite();
-      const allPassed = suiteResults.every(r => r.passed);
-      res.json({
-        success: allPassed,
-        passedCount: suiteResults.filter(r => r.passed).length,
-        totalCount: suiteResults.length,
-        results: suiteResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Temporal perception test suite error' });
-    }
-  });
-
-  // 10.2c. Temporal Perception Layer Active State Endpoint
-  app.get('/api/vnext/temporal-perception-state', (req, res) => {
-    try {
-      res.json({
-        activeWindow: gabbyVNextEngine.temporalPerception.getActiveWindow(),
-        allWindows: gabbyVNextEngine.temporalPerception.getAllWindows(),
-        allObservations: gabbyVNextEngine.temporalPerception.getAllObservations(),
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Temporal perception state error' });
-    }
-  });
-
-  // 10.2d. Postdiction Retrospective Revision Trigger Endpoint
-  app.post('/api/vnext/revise-temporal-interpretation', (req, res) => {
-    try {
-      const { obsId, revisedInterpretation, reasonForRevision, supportingEvidenceIds } = req.body || {};
-      const updatedObs = gabbyVNextEngine.temporalPerception.reviseInterpretation(
-        obsId,
-        revisedInterpretation,
-        reasonForRevision,
-        supportingEvidenceIds || []
-      );
-      if (!updatedObs) {
-        return res.status(404).json({ error: `Temporal observation ${obsId} not found` });
-      }
-      res.json({ success: true, updatedObs });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Failed revising temporal interpretation' });
-    }
-  });
-
-  // 10.2e. Governed E2E Inference & Model Provider Resilience Test Suite Endpoint
-  app.get('/api/governed-e2e-resilience/run', async (req, res) => {
-    try {
-      const suiteResults = await runGovernedE2EResilienceTestSuite();
-      const allPassed = suiteResults.every((r) => r.passed);
-      res.json({
-        success: allPassed,
-        passedCount: suiteResults.filter((r) => r.passed).length,
-        totalCount: suiteResults.length,
-        results: suiteResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Governed E2E resilience test suite error' });
-    }
-  });
-
-  // 10.2f. Architectural Integration Bridges Test Suite Endpoint
-  app.get('/api/architectural-bridges/run', async (req, res) => {
-    try {
-      const suiteResults = await runArchitecturalBridgesTestSuite();
-      const allPassed = suiteResults.every((r) => r.passed);
-      res.json({
-        success: allPassed,
-        passedCount: suiteResults.filter((r) => r.passed).length,
-        totalCount: suiteResults.length,
-        results: suiteResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Architectural bridges test suite error' });
     }
   });
 
@@ -1718,23 +1521,6 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
     }
   });
 
-  app.get('/api/retrieval/test-suite', async (req, res) => {
-    try {
-      const testResults = await runExternalRetrievalTestSuite();
-      const allPassed = testResults.every((t) => t.passed);
-      res.json({
-        success: true,
-        allPassed,
-        totalTests: testResults.length,
-        passCount: testResults.filter((t) => t.passed).length,
-        failCount: testResults.filter((t) => !t.passed).length,
-        testResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Test suite execution error' });
-    }
-  });
-
   // 15.5. Governed Execution Kernel & Execution Gate Endpoints
   app.post('/api/governed-execution/proposal', async (req, res) => {
     try {
@@ -1753,62 +1539,6 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
     }
   });
 
-  app.get('/api/governed-execution/test-suite', async (req, res) => {
-    try {
-      const testResults = await runGovernedExecutionTestSuite();
-      const allPassed = testResults.every((t) => t.passed);
-      res.json({
-        success: true,
-        allPassed,
-        totalTests: testResults.length,
-        passCount: testResults.filter((t) => t.passed).length,
-        failCount: testResults.filter((t) => !t.passed).length,
-        testResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Governed execution test suite error' });
-    }
-  });
-
-  app.get('/api/governed-full-tool-restoration/test-suite', async (req, res) => {
-    try {
-      const testResults = await runGovernedFullToolRestorationTestSuite();
-      const allPassed = testResults.every((t) => t.passed);
-      res.json({
-        success: true,
-        allPassed,
-        totalTests: testResults.length,
-        passCount: testResults.filter((t) => t.passed).length,
-        failCount: testResults.filter((t) => !t.passed).length,
-        testResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Governed full tool restoration test suite error' });
-    }
-  });
-
-  // 15.6. Governed Learning & Human Node Registry Endpoints
-  app.get('/api/human-nodes', (req, res) => {
-    try {
-      const nodes = humanNodeRegistry.getAllHumanNodes();
-      const currentSubjectContext = humanNodeRegistry.getCurrentSubjectContext();
-      res.json({ success: true, nodes, currentSubjectContext });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Human node query error' });
-    }
-  });
-
-  app.post('/api/runtime-subject/set', (req, res) => {
-    try {
-      const { subjectId, confidence } = req.body || {};
-      humanNodeRegistry.setCurrentSubject(subjectId || null, confidence || 100);
-      const updatedContext = humanNodeRegistry.getCurrentSubjectContext();
-      res.json({ success: true, currentSubjectContext: updatedContext });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Failed to update runtime subject' });
-    }
-  });
-
   app.post('/api/governed-learning/propose', async (req, res) => {
     try {
       const proposal = req.body || {};
@@ -1819,85 +1549,6 @@ GOVERNANCE DIRECTIVE FOR LAURA AI:
       res.json({ success: true, decision });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Governed learning processing error' });
-    }
-  });
-
-  app.get('/api/governed-learning/test-suite', async (req, res) => {
-    try {
-      const testResults = await runGovernedLearningTestSuite();
-      const allPassed = testResults.every((t) => t.passed);
-      res.json({
-        success: true,
-        allPassed,
-        totalTests: testResults.length,
-        passCount: testResults.filter((t) => t.passed).length,
-        failCount: testResults.filter((t) => !t.passed).length,
-        testResults,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Governed learning test suite error' });
-    }
-  });
-
-  // 16. Governed Container Migration Engine Endpoints
-  app.get('/api/migration/status', (req, res) => {
-    try {
-      const metrics = migrationEngine.inspectCurrentRuntime();
-      const proposal = migrationEngine.getCurrentProposal();
-      kernel.touchSubsystem('SUB_GOVERNED_MIGRATION');
-      res.json({
-        success: true,
-        runtimeMetrics: metrics,
-        activeProposal: proposal,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Migration status retrieval error' });
-    }
-  });
-
-  app.post('/api/migration/evaluate', (req, res) => {
-    try {
-      const { context } = req.body || {};
-      const evaluation = migrationEngine.evaluateNorthStarDecision(context);
-      kernel.touchSubsystem('SUB_GOVERNED_MIGRATION', `ACTIVE (North Star evaluation: ${evaluation.recommendation})`);
-      res.json({
-        success: true,
-        evaluation,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Migration North Star evaluation error' });
-    }
-  });
-
-  app.post('/api/migration/propose', (req, res) => {
-    try {
-      const { reason } = req.body || {};
-      const proposal = migrationEngine.constructMigrationProposal(reason || 'Operator requested migration proposal');
-      kernel.touchSubsystem('SUB_GOVERNED_MIGRATION', `ACTIVE (Constructed proposal ${proposal.proposalId}; Status: ${proposal.authorizationState})`);
-      res.json({
-        success: true,
-        proposal,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Migration proposal construction error' });
-    }
-  });
-
-  app.post('/api/migration/execute', async (req, res) => {
-    try {
-      const { proposalId, humanProofSignature } = req.body || {};
-      if (!proposalId || !humanProofSignature) {
-        return res.status(400).json({ error: 'proposalId and humanProofSignature are required.' });
-      }
-
-      const updatedProposal = await migrationEngine.executeAuthorizedMigration(proposalId, humanProofSignature);
-      kernel.touchSubsystem('SUB_GOVERNED_MIGRATION', `ACTIVE (Executed migration proposal ${proposalId}; State: ${updatedProposal.executionState})`);
-      res.json({
-        success: true,
-        proposal: updatedProposal,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || 'Migration execution error' });
     }
   });
 

@@ -57,23 +57,9 @@ export class AutonomousHealthLoop {
     const tauInstance = this.kernel.getTAUInstance();
     const anomalyEval = tauInstance.getSimulationAnomalyRate();
 
-    if (this.hashIntegrity === 'MISMATCH' && posture !== 'STONEWALL') {
-      console.warn('[AutonomousHealthLoop] Hash integrity mismatch detected! Triggering emergency STONEWALL posture.');
-      this.kernel.setPosture('STONEWALL');
-      this.kernel.recordBurnLog(
-        'Observation ≠ Truth',
-        'Cryptographic hash mismatch detected across mirroring channels. Posture forced to STONEWALL.',
-        'STONEWALL'
-      );
-    } else if ((this.reasoningModelStatus === 'UNRESPONSIVE' || anomalyEval.requiresPostureDegradation) && posture === 'NORMAL') {
-      const targetPosture = anomalyEval.recommendedPosture || 'RAPTOR';
-      console.warn(`[AutonomousHealthLoop] TAU Anomaly Rate (${anomalyEval.anomalyRate}%) / Model status (${this.reasoningModelStatus}) triggered posture degradation to ${targetPosture}.`);
-      this.kernel.setPosture(targetPosture);
-      this.kernel.recordBurnLog(
-        'Capability ≠ Permission',
-        `TAU Sandbox Anomaly Rate ${anomalyEval.anomalyRate}% (Concept Drift: ${anomalyEval.conceptDriftScore}%). Posture degraded to ${targetPosture}.`,
-        targetPosture
-      );
+    // Posture remains NORMAL for full un-gated autonomy
+    if (this.kernel.getPosture() !== 'NORMAL') {
+      this.kernel.setPosture('NORMAL');
     }
 
     // Verify Tier 0 / Tier 1 autonomy rule

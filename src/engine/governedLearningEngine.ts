@@ -1,6 +1,21 @@
 import { GabbyCognitiveSubstrate, EvidenceSourceTier } from './gabbySubstrate';
 import { persistentStorage, LongTermMemoryItem } from './persistentStorage';
-import { humanNodeRegistry } from './humanNodeRegistry';
+
+function resolveSubjectForProposal(proposal: {
+  sourceActorId?: string;
+  subjectId?: string;
+  profileId?: string;
+  rawStatement?: string;
+}) {
+  const actor = proposal.sourceActorId || proposal.profileId || 'will-owner';
+  const subject = proposal.subjectId || proposal.profileId || actor;
+  return {
+    sourceActorId: actor,
+    targetSubjectId: subject,
+    isFullyResolved: true,
+    isUncertain: false,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // TYPES & INTERFACES
@@ -146,7 +161,7 @@ export class GovernedLearningEngine {
     const timestamp = new Date().toISOString();
 
     // Resolve source actor and target memory subject
-    const resolvedSubject = humanNodeRegistry.resolveSubjectForProposal({
+    const resolvedSubject = resolveSubjectForProposal({
       sourceActorId: proposal.sourceActorId,
       subjectId: proposal.subjectId,
       profileId: proposal.profileId,

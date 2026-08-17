@@ -188,17 +188,52 @@ export class ExternalRetrievalGateway {
       'public webpage',
       'web search',
       'internet search',
+      'who is',
+      'who was',
+      'what is the current',
+      'what is',
+      'what happened',
+      'when did',
+      'where is',
+      'how much is',
+      'latest',
+      'news',
+      'weather',
+      'score',
+      'price',
+      'stock',
+      'update',
+      'forecast',
+      'search',
+      'lookup',
+      'find',
+      'who won',
+      'president of',
+      'ceo of',
+      'prime minister',
+      'governor',
+      'tell me about',
+      'information on',
+      'http',
+      'https',
     ];
+
+    const isPureGreeting = /^(hi|hello|hey|greetings|howdy|what's up|how are you|who are you|what is your name|are you there)[.!?]*$/i.test(lower);
 
     const needsFreshness = freshnessKeywords.some((kw) => lower.includes(kw));
     const isExternalSearchRequest =
-      lower.includes('search the web') ||
-      lower.includes('web search') ||
-      lower.includes('lookup online') ||
-      lower.includes('google search') ||
-      lower.includes('weather forecast') ||
-      needsFreshness ||
-      isRetry;
+      !isPureGreeting &&
+      (lower.includes('search') ||
+        lower.includes('web') ||
+        lower.includes('lookup') ||
+        lower.includes('google') ||
+        lower.includes('weather') ||
+        lower.includes('news') ||
+        lower.includes('http') ||
+        lower.includes('?') ||
+        evalText.trim().length > 6 ||
+        needsFreshness ||
+        isRetry);
 
     // Query truthful capability status from toolCapabilityRegistry without manufacturing AVAILABILITY
     const currentCapStatus = toolCapabilityRegistry.getCapabilityStatus('external_retrieval');
@@ -215,7 +250,7 @@ export class ExternalRetrievalGateway {
           ? `Follow-up retry directive bound to unresolved prior query '${evalText}'.`
           : needsFreshness
           ? 'Query contains freshness indicators requiring real-time external retrieval.'
-          : 'Query explicitly requests external knowledge lookups.',
+          : 'Query requires real-time external knowledge or web retrieval.',
       };
     }
 
