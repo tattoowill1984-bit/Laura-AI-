@@ -52,7 +52,7 @@ const INITIAL_HEALTH_METRICS: HealthMetrics = {
   hashIntegrity: 'VERIFIED',
   pendingProposalsCount: 0,
   posture: 'NORMAL',
-  currentTier: 'TIER_0_OBSERVATION_PREDICTION',
+  currentTier: 'TIER_3_MACHINE_SELF_EXPANSION',
   uptimeSeconds: 120,
 };
 
@@ -61,7 +61,7 @@ export default function App() {
 
   // Core state
   const [posture, setPosture] = useState<DefensivePosture>('NORMAL');
-  const [currentTier, setCurrentTier] = useState<AutonomyTier>('TIER_0_OBSERVATION_PREDICTION');
+  const [currentTier, setCurrentTier] = useState<AutonomyTier>('TIER_3_MACHINE_SELF_EXPANSION');
   const [epistemicState, setEpistemicState] = useState<EpistemicState>(INITIAL_EPISTEMIC_STATE);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics>(INITIAL_HEALTH_METRICS);
 

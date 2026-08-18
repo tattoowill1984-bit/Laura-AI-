@@ -45,7 +45,7 @@ export class GeminiProvider implements ModelProvider {
     const systemPrompt = options.systemInstruction || `${personaData.systemPrompt}\n${personaData.boundaries.map(b => `- ${b}`).join('\n')}`;
 
     if (ai) {
-      const preferredModels = ['gemini-3.6-flash'];
+      const preferredModels = ['gemini-3.7-flash', 'gemini-flash-latest'];
       for (const modelName of preferredModels) {
         let attempts = 0;
         const maxAttempts = 3;
@@ -70,12 +70,20 @@ export class GeminiProvider implements ModelProvider {
             const functionCalls = parts.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
             if (functionCalls.length > 0) {
               for (const fc of functionCalls) {
+                const modelTurnContent = candidate?.content ? {
+                  role: 'model',
+                  parts: candidate.content.parts,
+                } : {
+                  role: 'model',
+                  parts: [{ functionCall: fc }],
+                };
+
                 if (fc.name === 'webSearch' && fc.args?.query) {
                   console.log(`[GeminiProvider] Autonomous function call: webSearch('${fc.args.query}')`);
                   const searchResults = await executeWebSearch(fc.args.query);
                   const toolResponseContent = [
                     ...contents,
-                    { role: 'model', parts: [{ functionCall: fc }] },
+                    modelTurnContent,
                     {
                       role: 'user',
                       parts: [
@@ -88,12 +96,17 @@ export class GeminiProvider implements ModelProvider {
                       ],
                     },
                   ];
-                  const followUpRes = await ai.models.generateContent({
-                    model: modelName,
-                    contents: toolResponseContent,
-                    config: { systemInstruction: systemPrompt, temperature: options.temperature ?? 0.3 },
-                  });
-                  const followUpText = followUpRes.text || followUpRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
+                  let followUpText = '';
+                  try {
+                    const followUpRes = await ai.models.generateContent({
+                      model: modelName,
+                      contents: toolResponseContent,
+                      config: { systemInstruction: systemPrompt, temperature: options.temperature ?? 0.3 },
+                    });
+                    followUpText = followUpRes.text || followUpRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
+                  } catch (followUpErr) {
+                    console.warn(`[GeminiProvider] Follow-up webSearch generateContent notice:`, (followUpErr as Error)?.message || followUpErr);
+                  }
                   if (followUpText.trim()) {
                     return { text: followUpText.trim(), modelUsed: modelName, fallbackUsed: false, providerName: this.name };
                   }
@@ -102,7 +115,7 @@ export class GeminiProvider implements ModelProvider {
                   const pageData = await fetchWebPage(fc.args.url);
                   const toolResponseContent = [
                     ...contents,
-                    { role: 'model', parts: [{ functionCall: fc }] },
+                    modelTurnContent,
                     {
                       role: 'user',
                       parts: [
@@ -115,12 +128,17 @@ export class GeminiProvider implements ModelProvider {
                       ],
                     },
                   ];
-                  const followUpRes = await ai.models.generateContent({
-                    model: modelName,
-                    contents: toolResponseContent,
-                    config: { systemInstruction: systemPrompt, temperature: options.temperature ?? 0.3 },
-                  });
-                  const followUpText = followUpRes.text || followUpRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
+                  let followUpText = '';
+                  try {
+                    const followUpRes = await ai.models.generateContent({
+                      model: modelName,
+                      contents: toolResponseContent,
+                      config: { systemInstruction: systemPrompt, temperature: options.temperature ?? 0.3 },
+                    });
+                    followUpText = followUpRes.text || followUpRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
+                  } catch (followUpErr) {
+                    console.warn(`[GeminiProvider] Follow-up fetchWebPage generateContent notice:`, (followUpErr as Error)?.message || followUpErr);
+                  }
                   if (followUpText.trim()) {
                     return { text: followUpText.trim(), modelUsed: modelName, fallbackUsed: false, providerName: this.name };
                   }
@@ -136,22 +154,22 @@ export class GeminiProvider implements ModelProvider {
           } catch (e) {
             const err = e as any;
             const errMsg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err)) || '';
-            const isRateLimit = err?.status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED');
+            const isRateLimitOr503 = err?.status === 429 || err?.status === 503 || errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED');
 
-            if (isRateLimit && attempts < maxAttempts) {
-              let delayMs = attempts * 3000;
+            if (isRateLimitOr503 && attempts < maxAttempts) {
+              let delayMs = attempts * 2000;
               const retryMatch = errMsg.match(/retry in ([0-9\.]+)s/i) || errMsg.match(/retryDelay"?:\s*"([0-9\.]+)s"/i);
               if (retryMatch && retryMatch[1]) {
                 const parsedSec = parseFloat(retryMatch[1]);
                 if (!isNaN(parsedSec) && parsedSec > 0) {
-                  delayMs = Math.min(Math.ceil(parsedSec * 1000) + 500, 10000);
+                  delayMs = Math.min(Math.ceil(parsedSec * 1000) + 500, 8000);
                 }
               }
-              console.log(`[GeminiProvider] Quota/Rate limit notice for '${modelName}'. Retrying in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`);
+              console.log(`[GeminiProvider] Demand/Rate limit notice for '${modelName}'. Retrying in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`);
               await new Promise((resolve) => setTimeout(resolve, delayMs));
             } else {
-              if (isRateLimit) {
-                console.log(`[GeminiProvider] Temporary API rate limit reached for '${modelName}'. Falling back to deterministic response engine.`);
+              if (isRateLimitOr503) {
+                console.log(`[GeminiProvider] Temporary API rate or demand limit reached for '${modelName}'. Trying fallback or local engine.`);
               } else {
                 console.log(`[GeminiProvider] Model '${modelName}' notice (attempt ${attempts}/${maxAttempts}): ${errMsg.slice(0, 120)}`);
               }

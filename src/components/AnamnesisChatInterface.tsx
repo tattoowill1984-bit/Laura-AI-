@@ -1094,7 +1094,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                   <div className="flex items-center justify-between text-cyan-300 font-bold">
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                      Triangulation Model: {msg.executionMetadata.model || 'gemini-3.6-flash'}
+                      Triangulation Model: {msg.executionMetadata.model || 'gemini-3.7-flash'}
                     </span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
                       {msg.executionMetadata.execution || 'LLM_SYNTHESIS'}
