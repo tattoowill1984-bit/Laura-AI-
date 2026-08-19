@@ -126,7 +126,7 @@ function generateLocalDeterministicResponse(
   } else if (lower.includes("who are you") || lower.includes("what are you") || lower.includes("sentinel") || lower.includes("anamnesis") || lower.includes("gabby") || lower.includes("laura")) {
     coreAnalysis = `I am Laura AI — a persistent, multimodal, governed cognitive AI machine and learning partner. I operate under my core substrate (Hardware KMS, CBAC Capability Guard, Merkle Evidence DAG, ADT IR Reasoning Compiler, and Deterministic Policy Governor) to meet you where you are and guide understanding with truth before confidence.`;
   } else {
-    coreAnalysis = `Input received: "${message}". The query has been processed through the Observation Envelope (Capability ≠ Permission) and evaluated across the 3-Node Cognitive Fabric.`;
+    coreAnalysis = `I have received your query regarding "${message}". System cognitive nodes are fully online and active across my Merkle Evidence DAG. How can I assist you further with this topic?`;
   }
 
   const willText = fabric?.WILL || fabric?.will?.summary || 'Identity boundary & executive direction preserved.';

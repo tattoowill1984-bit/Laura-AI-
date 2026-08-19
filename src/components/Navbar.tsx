@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, ShieldAlert, Cpu, Activity, Lock, AlertTriangle, FileCheck, Layers, Terminal, Sliders, Sparkles, Key, ShieldCheck, User, Brain, Volume2, HardDrive } from 'lucide-react';
+import { Shield, ShieldAlert, Cpu, Activity, Lock, AlertTriangle, FileCheck, Layers, Terminal, Sliders, Sparkles, Key, ShieldCheck, User, Brain, Volume2, HardDrive, ArrowRightLeft } from 'lucide-react';
 import { AutonomyTier, DefensivePosture, HealthMetrics } from '../types';
 
 interface NavbarProps {
@@ -19,6 +19,7 @@ interface NavbarProps {
   onOpenProfileModal?: () => void;
   onOpenMigrationModal?: () => void;
   onOpenDriveModal?: () => void;
+  onOpenInterAIModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfileModal,
   onOpenMigrationModal,
   onOpenDriveModal,
+  onOpenInterAIModal,
 }) => {
   const getPostureBadge = () => {
     switch (posture) {
@@ -199,6 +201,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Layers className="w-3.5 h-3.5 text-purple-400" />
             15 Survival Layers
           </button>
+
+          {onOpenInterAIModal && (
+            <button
+              onClick={onOpenInterAIModal}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-purple-300 bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 transition-all cursor-pointer"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-purple-400" />
+              Inter-AI Channel
+            </button>
+          )}
 
           {onOpenMasterKeyModal && (
             <button

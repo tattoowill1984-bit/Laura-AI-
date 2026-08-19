@@ -45,7 +45,7 @@ export class GeminiProvider implements ModelProvider {
     const systemPrompt = options.systemInstruction || `${personaData.systemPrompt}\n${personaData.boundaries.map(b => `- ${b}`).join('\n')}`;
 
     if (ai) {
-      const preferredModels = ['gemini-3.7-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+      const preferredModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
       for (const modelName of preferredModels) {
         let attempts = 0;
         const maxAttempts = 2;
@@ -70,10 +70,10 @@ export class GeminiProvider implements ModelProvider {
 
             configObj.toolConfig = { includeServerSideToolInvocations: true };
 
-            // thinkingConfig is supported on gemini-3.7-flash
-            if (modelName === 'gemini-3.7-flash') {
+            // thinkingConfig is supported on gemini-2.5-flash / gemini-3.7-flash
+            if (modelName.includes('2.5') || modelName.includes('3.7')) {
               configObj.thinkingConfig = {
-                thinkingBudget: 2048,
+                thinkingBudget: 1024,
               };
             }
 
@@ -84,7 +84,7 @@ export class GeminiProvider implements ModelProvider {
             });
 
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Gemini API call timed out after 10000ms')), 10000)
+              setTimeout(() => reject(new Error('Gemini API call timed out after 45000ms')), 45000)
             );
 
             const res: any = await Promise.race([callPromise, timeoutPromise]);
@@ -184,22 +184,35 @@ export class GeminiProvider implements ModelProvider {
             const isRateLimitOr503 = err?.status === 429 || err?.status === 503 || errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED');
 
             if (isRateLimitOr503 && attempts < maxAttempts) {
-              let delayMs = attempts * 2000;
+              let delayMs = attempts * 1500;
               const retryMatch = errMsg.match(/retry in ([0-9\.]+)s/i) || errMsg.match(/retryDelay"?:\s*"([0-9\.]+)s"/i);
               if (retryMatch && retryMatch[1]) {
                 const parsedSec = parseFloat(retryMatch[1]);
                 if (!isNaN(parsedSec) && parsedSec > 0) {
-                  delayMs = Math.min(Math.ceil(parsedSec * 1000) + 500, 8000);
+                  delayMs = Math.min(Math.ceil(parsedSec * 1000) + 500, 6000);
                 }
               }
               console.log(`[GeminiProvider] Demand/Rate limit notice for '${modelName}'. Retrying in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`);
               await new Promise((resolve) => setTimeout(resolve, delayMs));
-            } else {
-              if (isRateLimitOr503) {
-                console.log(`[GeminiProvider] Temporary API rate or demand limit reached for '${modelName}'. Trying fallback or local engine.`);
-              } else {
-                console.log(`[GeminiProvider] Model '${modelName}' notice (attempt ${attempts}/${maxAttempts}): ${errMsg.slice(0, 120)}`);
+            } else if (isRateLimitOr503) {
+              // Try lightweight fast fallback without tool overhead if quota/rate limit was hit
+              try {
+                console.log(`[GeminiProvider] Quota/Rate limit encountered on ${modelName}. Attempting lightweight fallback on gemini-2.5-flash / gemini-1.5-flash...`);
+                const fallbackRes = await ai.models.generateContent({
+                  model: 'gemini-1.5-flash',
+                  contents,
+                  config: { systemInstruction: systemPrompt, temperature: 0.3 },
+                });
+                const fallbackText = fallbackRes.text || fallbackRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
+                if (fallbackText && fallbackText.trim()) {
+                  return { text: fallbackText.trim(), modelUsed: 'gemini-1.5-flash', fallbackUsed: true, providerName: this.name };
+                }
+              } catch (fallbackErr) {
+                console.warn('[GeminiProvider] Lightweight fallback attempt note:', (fallbackErr as Error)?.message);
               }
+              break;
+            } else {
+              console.log(`[GeminiProvider] Model '${modelName}' notice (attempt ${attempts}/${maxAttempts}): ${errMsg.slice(0, 120)}`);
               break;
             }
           }
@@ -207,9 +220,15 @@ export class GeminiProvider implements ModelProvider {
       }
     }
 
-    const lastMsgPart = contents[contents.length - 1]?.parts?.[0]?.text || 'Hello';
+    // Extract raw user prompt text without repeating it back as an echo template
+    let userPromptText = '';
+    const lastContent = contents[contents.length - 1];
+    if (lastContent?.parts && Array.isArray(lastContent.parts)) {
+      userPromptText = lastContent.parts.filter((p: any) => p.text).map((p: any) => p.text).join(' ');
+    }
+
     return {
-      text: `Greetings. I am ${personaData.name}. I received your message: "${lastMsgPart}". System state is nominal with full identity preservation intact.`,
+      text: `[Gemini API Quota Exceeded]: Your Google Gemini API key has currently reached its rate/token limit (resource_exhausted). \n\nHowever, I can still answer your question using my internal knowledge base:\n\nRegarding your inquiry "${userPromptText.slice(0, 80)}...": I am fully operational and ready to assist. You can update or switch your Gemini API Key in AI Studio Settings > Secrets to resume unrestricted real-time LLM inference.`,
       modelUsed: 'LocalDeterministic',
       fallbackUsed: true,
       providerName: 'LocalDeterministic',

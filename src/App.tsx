@@ -12,6 +12,7 @@ import { GabbyVNextPanel } from './components/GabbyVNextPanel';
 import { MasterKeyModal } from './components/MasterKeyModal';
 import { ProfileAndMemoryModal, UserProfileClient } from './components/ProfileAndMemoryModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
+import { InterAIDialogueModal } from './components/InterAIDialogueModal';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
 import {
   AutonomyTier,
@@ -92,6 +93,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState<boolean>(false);
   const [isDriveModalOpen, setIsDriveModalOpen] = useState<boolean>(false);
+  const [isInterAIModalOpen, setIsInterAIModalOpen] = useState<boolean>(false);
   const [proposalForModal, setProposalForModal] = useState<Proposal | null>(null);
 
   const handleFeedToLauraMemory = async (title: string, content: string, sourceUrl?: string) => {
@@ -609,6 +611,7 @@ export default function App() {
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
         onOpenDriveModal={() => setIsDriveModalOpen(true)}
+        onOpenInterAIModal={() => setIsInterAIModalOpen(true)}
       />
 
       {/* Posture Bar Control Banner (Shown only in Engineering View) */}
@@ -734,6 +737,12 @@ export default function App() {
         isOpen={isDriveModalOpen}
         onClose={() => setIsDriveModalOpen(false)}
         onFeedToLauraMemory={handleFeedToLauraMemory}
+      />
+
+      <InterAIDialogueModal
+        isOpen={isInterAIModalOpen}
+        onClose={() => setIsInterAIModalOpen(false)}
+        posture={posture}
       />
     </div>
   );
