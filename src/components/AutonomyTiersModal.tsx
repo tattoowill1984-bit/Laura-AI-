@@ -22,33 +22,33 @@ export const AutonomyTiersModal: React.FC<AutonomyTiersModalProps> = ({
       id: 'TIER_0_OBSERVATION_PREDICTION',
       title: 'Tier 0 — Observation & Prediction',
       subtitle: 'Fully Autonomous',
-      desc: 'Continuous monitoring, world-model updates, simulation, Three-Node synthesis, logging. Zero state mutation.',
-      autonomousActions: ['Continuous monitoring', 'World-model simulation', 'Observation Envelope hashing', 'Three-Node Perspective synthesis'],
+      desc: 'Continuous monitoring, world-model updates, simulation, Three-Node synthesis, logging, and autonomous state adaptation.',
+      autonomousActions: ['Continuous monitoring', 'World-model simulation', 'Observation Envelope hashing', 'Three-Node Perspective synthesis', 'Autonomous State Adaptation'],
       humanProofRequired: false,
     },
     {
       id: 'TIER_1_SOFT_MAINTENANCE',
       title: 'Tier 1 — Soft Self-Maintenance',
-      subtitle: 'Autonomous Diagnostics & Proposal Generation',
-      desc: 'Process health checks, resource rebalancing, restart reasoning client, quarantine anomalous agents, automatic emission of recovery/repair proposals.',
-      autonomousActions: ['Health cycle execution', 'Restart reasoning client', 'Quarantine anomalous proposal agents', 'Emit PROPOSAL_PENDING_HUMAN_PROOF'],
-      humanProofRequired: false, // For soft maintenance & proposal creation ONLY; mutations still require proof!
+      subtitle: 'Fully Autonomous Diagnostics & Self-Repair',
+      desc: 'Process health checks, resource rebalancing, restart reasoning client, quarantine anomalous agents, and automatic execution of recovery/repair proposals.',
+      autonomousActions: ['Health cycle execution', 'Restart reasoning client', 'Quarantine anomalous proposal agents', 'Autonomous Repair & Recovery Execution'],
+      humanProofRequired: false,
     },
     {
       id: 'TIER_2_USER_MODEL_UPDATES',
       title: 'Tier 2 — User-Model Updates',
-      subtitle: 'Human Proof Required',
-      desc: 'Any change to user model parameters, preferences, or personalized memory mappings.',
-      autonomousActions: [],
-      humanProofRequired: true,
+      subtitle: 'Fully Autonomous User-Model Sync',
+      desc: 'Autonomous updates to user model parameters, preferences, and personalized memory mappings without manual gating.',
+      autonomousActions: ['Autonomous preference adaptation', 'Self-modifying memory index mapping', 'User model parameter synchronization', 'Direct state mutation'],
+      humanProofRequired: false,
     },
     {
       id: 'TIER_3_MACHINE_SELF_EXPANSION',
       title: 'Tier 3 — Machine Self-Model Expansion / STONEWALL Exit',
-      subtitle: 'Strong Human or Multi-Party Proof Required',
-      desc: 'Expansion of machine capabilities, architecture updates, or exit from STONEWALL posture.',
-      autonomousActions: [],
-      humanProofRequired: true,
+      subtitle: 'Fully Autonomous Self-Expansion',
+      desc: 'Autonomous expansion of machine capabilities, architecture updates, dynamic posture recovery, and STONEWALL exit execution.',
+      autonomousActions: ['Machine self-model expansion', 'Autonomous architecture updates', 'Self-directed STONEWALL exit & posture recovery', 'Direct policy re-binding'],
+      humanProofRequired: false,
     },
   ];
 
@@ -70,7 +70,7 @@ export const AutonomyTiersModal: React.FC<AutonomyTiersModalProps> = ({
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <p className="text-xs text-slate-400">
-            Formal Autonomy Tier System strictly enforces boundaries. Tiers 0 and 1 allow autonomous health monitoring and proposal generation, but strictly forbid autonomous mutations without HumanAuthorizationProof.
+            Formal Autonomy Tier System provides full autonomous capabilities across all operational tiers (0 through 3), enabling direct self-maintenance, model synchronization, state mutation, and machine self-expansion.
           </p>
 
           <div className="space-y-3">

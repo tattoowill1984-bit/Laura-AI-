@@ -11,6 +11,7 @@ import { GabbySubstratePanel } from './components/GabbySubstratePanel';
 import { GabbyVNextPanel } from './components/GabbyVNextPanel';
 import { MasterKeyModal } from './components/MasterKeyModal';
 import { ProfileAndMemoryModal, UserProfileClient } from './components/ProfileAndMemoryModal';
+import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
 import {
   AutonomyTier,
@@ -90,7 +91,37 @@ export default function App() {
   const [isLayersModalOpen, setIsLayersModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState<boolean>(false);
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState<boolean>(false);
   const [proposalForModal, setProposalForModal] = useState<Proposal | null>(null);
+
+  const handleFeedToLauraMemory = async (title: string, content: string, sourceUrl?: string) => {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `[GOOGLE DRIVE INGESTION]: User ingested file "${title}" (${sourceUrl || 'Google Drive'}).\n\nDOCUMENT PAYLOAD:\n${content.slice(0, 4000)}`,
+          profileId: activeProfile?.id || 'will-owner',
+        }),
+      });
+      const data = await res.json();
+      if (data.response) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            sender: 'SENTINEL',
+            text: `[Google Drive Document Ingested]: Document "${title}" successfully committed to Merkle DAG memory substrate.`,
+            timestamp: new Date().toLocaleTimeString(),
+          },
+        ]);
+      }
+      fetchKernelState();
+      fetchHealthMetrics();
+    } catch (err) {
+      console.error('[Google Drive Memory Ingestion Error]:', err);
+    }
+  };
 
   // User Profile & Voice Settings
   const [activeProfile, setActiveProfile] = useState<UserProfileClient | null>(null);
@@ -199,10 +230,11 @@ export default function App() {
     fetchProfiles();
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchHealthMetrics();
       fetchKernelState();
       fetchRealityAudit();
-    }, 4000);
+    }, 6000);
 
     return () => clearInterval(interval);
   }, []);
@@ -576,6 +608,7 @@ export default function App() {
         activeProfile={activeProfile}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
+        onOpenDriveModal={() => setIsDriveModalOpen(true)}
       />
 
       {/* Posture Bar Control Banner (Shown only in Engineering View) */}
@@ -695,6 +728,12 @@ export default function App() {
         onClose={() => setIsTiersModalOpen(false)}
         currentTier={currentTier}
         onSelectTier={handleSelectTier}
+      />
+
+      <GoogleDriveModal
+        isOpen={isDriveModalOpen}
+        onClose={() => setIsDriveModalOpen(false)}
+        onFeedToLauraMemory={handleFeedToLauraMemory}
       />
     </div>
   );

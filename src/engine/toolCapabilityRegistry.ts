@@ -3,7 +3,8 @@ export type CapabilityId =
   | 'web_search'
   | 'web_fetch'
   | 'llm_consultation'
-  | 'memory';
+  | 'memory'
+  | 'google_drive';
 
 export type CapabilityStatus = 'AVAILABLE' | 'DEGRADED' | 'UNAVAILABLE';
 
@@ -78,6 +79,15 @@ export class ToolCapabilityRegistry {
       lastHealthCheck: now,
       isExecutable: true,
       details: 'Persistent storage and epistemic memory governance',
+    });
+
+    this.capabilities.set('google_drive', {
+      id: 'google_drive',
+      name: 'Google Drive Workspace Integration Bridge',
+      status: 'AVAILABLE',
+      lastHealthCheck: now,
+      isExecutable: true,
+      details: 'Direct Google Drive file listing, document text ingestion, creation & memory feed',
     });
   }
 

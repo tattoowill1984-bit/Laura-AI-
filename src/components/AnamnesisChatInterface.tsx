@@ -220,8 +220,19 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
 
   useEffect(() => {
     const telemetryInterval = setInterval(() => {
-      setTelemetryData(sensorStreamer.getTelemetry());
-    }, 800);
+      const nextTelem = sensorStreamer.getTelemetry();
+      setTelemetryData((prev) => {
+        if (
+          prev.eyesStatus === nextTelem.eyesStatus &&
+          prev.earsStatus === nextTelem.earsStatus &&
+          prev.framesProcessed === nextTelem.framesProcessed &&
+          prev.audioChunksProcessed === nextTelem.audioChunksProcessed
+        ) {
+          return prev;
+        }
+        return nextTelem;
+      });
+    }, 3000);
     return () => clearInterval(telemetryInterval);
   }, []);
 
@@ -588,6 +599,10 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                   Online
                 </span>
               )}
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-semibold flex items-center gap-1">
+                <Brain className="w-3 h-3 text-amber-400 animate-pulse" />
+                Thinking: ON
+              </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">AI Assistant & Cognitive Partner</p>
           </div>
@@ -1127,7 +1142,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                     className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <FileCheck className="w-3.5 h-3.5" />
-                    Review & Apply HumanAuthorizationProof
+                    Review & Execute Proposal
                   </button>
                 </div>
               )}
@@ -1186,13 +1201,11 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={
-                posture === 'STONEWALL'
-                  ? 'System in STONEWALL mode. Inference suppressed until recovery proof...'
-                  : isListening
+                isListening
                   ? 'Listening... Speak now...'
                   : 'Type or speak here...'
               }
-              disabled={isLoading || posture === 'STONEWALL'}
+              disabled={isLoading}
               className={`w-full bg-slate-950 border ${
                 isListening
                   ? 'border-rose-500 ring-2 ring-rose-500/30'
@@ -1202,7 +1215,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
 
             <button
               type="submit"
-              disabled={(!inputText.trim() && pendingAttachments.length === 0) || isLoading || posture === 'STONEWALL'}
+              disabled={(!inputText.trim() && pendingAttachments.length === 0) || isLoading}
               className="absolute right-2 p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all disabled:opacity-30 disabled:hover:bg-purple-600 cursor-pointer shadow-md"
             >
               <Send className="w-4 h-4" />
@@ -1216,7 +1229,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
               <button
                 type="button"
                 onClick={toggleVoiceInput}
-                disabled={isLoading || posture === 'STONEWALL'}
+                disabled={isLoading}
                 className={`px-3.5 py-2 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer border ${
                   isListening
                     ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse'
@@ -1250,7 +1263,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
               <button
                 type="button"
                 onClick={openCamera}
-                disabled={isLoading || posture === 'STONEWALL'}
+                disabled={isLoading}
                 className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700/80 text-slate-200 border border-slate-700/70 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Camera className="w-4 h-4 text-amber-400" />
@@ -1261,7 +1274,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading || posture === 'STONEWALL'}
+                disabled={isLoading}
                 className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700/80 text-slate-200 border border-slate-700/70 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Paperclip className="w-4 h-4 text-cyan-400" />

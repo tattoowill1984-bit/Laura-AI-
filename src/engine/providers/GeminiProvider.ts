@@ -45,23 +45,38 @@ export class GeminiProvider implements ModelProvider {
     const systemPrompt = options.systemInstruction || `${personaData.systemPrompt}\n${personaData.boundaries.map(b => `- ${b}`).join('\n')}`;
 
     if (ai) {
-      const preferredModels = ['gemini-3.7-flash', 'gemini-flash-latest'];
+      const preferredModels = ['gemini-3.7-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
       for (const modelName of preferredModels) {
         let attempts = 0;
-        const maxAttempts = 3;
+        const maxAttempts = 2;
 
         while (attempts < maxAttempts) {
           attempts++;
           try {
-            const res = await ai.models.generateContent({
+            const configObj: any = {
+              systemInstruction: `${systemPrompt}\n[ADVANCED THINKING MODE ACTIVE: Perform deep step-by-step cognitive reasoning, multi-perspective evaluation, and rigorous factual synthesis before formulating output.]`,
+              temperature: options.temperature ?? 0.3,
+              tools: options.tools,
+            };
+
+            // thinkingConfig is supported on gemini-3.7-flash
+            if (modelName === 'gemini-3.7-flash') {
+              configObj.thinkingConfig = {
+                thinkingBudget: 2048,
+              };
+            }
+
+            const callPromise = ai.models.generateContent({
               model: modelName,
               contents,
-              config: {
-                systemInstruction: systemPrompt,
-                temperature: options.temperature ?? 0.3,
-                tools: options.tools,
-              },
+              config: configObj,
             });
+
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Gemini API call timed out after 10000ms')), 10000)
+            );
+
+            const res: any = await Promise.race([callPromise, timeoutPromise]);
 
             const candidate = res.candidates?.[0];
             const parts = candidate?.content?.parts || [];

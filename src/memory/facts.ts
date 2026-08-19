@@ -4,6 +4,8 @@
  */
 
 import { persistentStorage, LongTermMemoryItem } from '../engine/persistentStorage';
+import { semanticMemoryQueryEngine, SemanticQueryOptions, SemanticQueryResult } from './semanticMemoryQueryEngine';
+import { GabbyCognitiveSubstrate } from '../engine/gabbySubstrate';
 
 export class FactsVault {
   public getFactsForProfile(profileId = 'will-owner'): LongTermMemoryItem[] {
@@ -23,6 +25,18 @@ export class FactsVault {
     const q = query.toLowerCase();
     return memories.filter(m => m.fact.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
   }
+
+  /**
+   * Performs semantic similarity querying against memory store (long-term facts, past chat experiences, substrate nodes)
+   */
+  public querySemanticMemories(
+    queryInput: string,
+    gabbySubstrate?: GabbyCognitiveSubstrate,
+    options?: SemanticQueryOptions
+  ): SemanticQueryResult {
+    return semanticMemoryQueryEngine.queryMemories(queryInput, gabbySubstrate, options);
+  }
 }
 
 export const factsVault = new FactsVault();
+

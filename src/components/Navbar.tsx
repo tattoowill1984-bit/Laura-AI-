@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, ShieldAlert, Cpu, Activity, Lock, AlertTriangle, FileCheck, Layers, Terminal, Sliders, Sparkles, Key, ShieldCheck, User, Brain, Volume2 } from 'lucide-react';
+import { Shield, ShieldAlert, Cpu, Activity, Lock, AlertTriangle, FileCheck, Layers, Terminal, Sliders, Sparkles, Key, ShieldCheck, User, Brain, Volume2, HardDrive } from 'lucide-react';
 import { AutonomyTier, DefensivePosture, HealthMetrics } from '../types';
 
 interface NavbarProps {
@@ -18,6 +18,7 @@ interface NavbarProps {
   activeProfile?: any;
   onOpenProfileModal?: () => void;
   onOpenMigrationModal?: () => void;
+  onOpenDriveModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeProfile,
   onOpenProfileModal,
   onOpenMigrationModal,
+  onOpenDriveModal,
 }) => {
   const getPostureBadge = () => {
     switch (posture) {
@@ -97,6 +99,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Actions & Profile Memory Button */}
           <div className="flex items-center gap-2">
+            {onOpenDriveModal && (
+              <button
+                onClick={onOpenDriveModal}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-cyan-950/50 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-900/50 hover:border-cyan-400/60 transition-all cursor-pointer shadow-sm shadow-cyan-500/10"
+              >
+                <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Google Drive</span>
+              </button>
+            )}
+
             {onOpenProfileModal && (
               <button
                 onClick={onOpenProfileModal}
@@ -156,6 +168,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Live Status Indicators */}
         <div className="flex items-center flex-wrap gap-2">
           {getPostureBadge()}
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-amber-500/15 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10">
+            <Brain className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            Advanced Thinking: ACTIVE (16K)
+          </span>
+
+          {onOpenDriveModal && (
+            <button
+              onClick={onOpenDriveModal}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-900/60 transition-all cursor-pointer shadow-sm shadow-cyan-500/10"
+            >
+              <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
+              Google Drive Bridge
+            </button>
+          )}
 
           <button
             onClick={onOpenTiersModal}

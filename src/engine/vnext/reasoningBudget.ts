@@ -11,12 +11,13 @@ export class AdaptiveReasoningBudget {
   private static instance: AdaptiveReasoningBudget;
 
   private budgetConfig: CognitiveResourceBudget = {
-    maxBackgroundCyclesPerMinute: 60,
-    maxRetrievalsPerTask: 5,
-    maxTokenBudgetPerTurn: 100000,
-    maxRetryAttempts: 3,
+    maxBackgroundCyclesPerMinute: 300,
+    maxRetrievalsPerTask: 50,
+    maxTokenBudgetPerTurn: 500000,
+    maxRetryAttempts: 10,
   };
 
+  private isAdvancedThinking = true;
   private backgroundCyclesInCurrentWindow = 0;
   private windowStartMs = Date.now();
   private retrievalsByTask: Map<string, number> = new Map();
@@ -28,7 +29,22 @@ export class AdaptiveReasoningBudget {
     return AdaptiveReasoningBudget.instance;
   }
 
+  public setAdvancedThinking(enabled: boolean): void {
+    this.isAdvancedThinking = enabled;
+  }
+
+  public getAdvancedThinkingStatus(): boolean {
+    return this.isAdvancedThinking;
+  }
+
   public selectTier(obs: ObservationEnvelopeVNext, posture: string): ReasoningTier {
+    if (this.isAdvancedThinking) {
+      if (posture === 'STONEWALL' || posture === 'RAPTOR') {
+        return 'MULTI_AGENT';
+      }
+      return 'RESEARCH';
+    }
+
     const rawLen = obs.rawContent.length;
     const intent = obs.intentEstimate.primaryIntent;
     const uncertainty = obs.uncertainty.score;

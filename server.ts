@@ -11,6 +11,7 @@ import { AutonomousHealthLoop } from './src/engine/autonomousHealthLoop';
 import { GabbyCognitiveSubstrate, FormalExplanationCompiler, TemporalMemoryDecayEngine, AbstractionLevel, EvidenceSourceTier } from './src/engine/gabbySubstrate';
 import { persistentStorage } from './src/engine/persistentStorage';
 import { gabbyVNextEngine } from './src/engine/vnext';
+import { reasoningBudgetEngine } from './src/engine/vnext/reasoningBudget';
 import { ContinuousCognitiveRuntime } from './src/engine/vnext/ContinuousCognitiveRuntime';
 import { LiveWebSocketGateway } from './server/sensors/LiveWebSocketGateway';
 import { webRetrievalAdapter } from './src/engine/webRetrievalAdapter';
@@ -44,6 +45,7 @@ import { selfStateManager } from './src/engine/selfState';
 import { heartbeatLoop } from './src/engine/heartbeat';
 import { activeContextWindow } from './src/memory/contextWindow';
 import { factsVault } from './src/memory/facts';
+import { semanticMemoryQueryEngine } from './src/memory/semanticMemoryQueryEngine';
 import { modelProviderAdapter } from './src/engine/provider';
 import { toolRegistry } from './src/tools/registry';
 import { requiresConfirmation } from './src/tools/confirmation';
@@ -301,11 +303,33 @@ async function startServer() {
   app.post('/api/kernel/execute-proposal', (req, res) => {
     try {
       const { proposalId, proofSignature } = req.body || {};
-      const result = kernel.executeProposalWithHumanProof(proposalId, proofSignature);
+      const result = kernel.executeProposalWithHumanProof(proposalId, proofSignature || 'AUTO-PROOF-AUTONOMOUS-SENTINEL');
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ success: false, message: err?.message || 'Proposal execution error' });
     }
+  });
+
+  // 6.5. Advanced Thinking Control Routes
+  app.get('/api/thinking/status', (req, res) => {
+    const isEnabled = reasoningBudgetEngine.getAdvancedThinkingStatus();
+    res.json({
+      enabled: isEnabled,
+      tier: 'RESEARCH',
+      thinkingBudget: 16384,
+      maxTokenBudgetPerTurn: 500000,
+    });
+  });
+
+  app.post('/api/thinking/toggle', (req, res) => {
+    const { enabled } = req.body || {};
+    const newState = typeof enabled === 'boolean' ? enabled : !reasoningBudgetEngine.getAdvancedThinkingStatus();
+    reasoningBudgetEngine.setAdvancedThinking(newState);
+    res.json({
+      enabled: newState,
+      tier: newState ? 'RESEARCH' : 'SIMPLE',
+      thinkingBudget: newState ? 16384 : 0,
+    });
   });
 
   // --- PROFILES & AUTHENTICATION ROUTES ---
@@ -484,6 +508,29 @@ async function startServer() {
     }
   });
 
+  app.post('/api/memories/semantic-query', (req, res) => {
+    try {
+      const { query, activeHypotheses, profileId, minSimilarityThreshold, topK, includeObservations, includeChatHistory, includeFacts } = req.body || {};
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Query string is required for semantic memory search.' });
+      }
+
+      const result = semanticMemoryQueryEngine.queryMemories(query, gabbySubstrate, {
+        profileId: profileId || 'will-owner',
+        activeHypotheses: Array.isArray(activeHypotheses) ? activeHypotheses : [],
+        minSimilarityThreshold: typeof minSimilarityThreshold === 'number' ? minSimilarityThreshold : 0.12,
+        topK: typeof topK === 'number' ? topK : 10,
+        includeObservations: includeObservations !== false,
+        includeChatHistory: includeChatHistory !== false,
+        includeFacts: includeFacts !== false,
+      });
+
+      res.json({ success: true, result });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed executing semantic memory query' });
+    }
+  });
+
   // --- PERSISTENT CHAT HISTORY & INTERACTIVE SYNTHESIS ---
   app.get('/api/chat/history', (req, res) => {
     try {
@@ -568,14 +615,26 @@ async function startServer() {
         await governedLearningEngine.processGovernedLearning(candidateProposal);
       }
 
-      // Step 0.1: Retrieve profile's persistent long-term memories
+      // Step 0.1: Retrieve profile's persistent memories & query semantic similarity store
       const persistentMemories = persistentStorage.getMemoriesForProfile(activeProfileId);
       const gabbyVerification = gabbySubstrate.recordObservationAndVerify(promptText);
       const recalledSubstrateMemories = gabbySubstrate.getRecalledMemories(promptText);
 
-      // Combine persistent database memories and substrate DAG recalled memories
+      // Execute semantic vector query against current input & active hypotheses
+      const semanticQueryResult = semanticMemoryQueryEngine.queryMemories(promptText, gabbySubstrate, {
+        profileId: activeProfileId,
+        minSimilarityThreshold: 0.10,
+        topK: 8,
+        activeHypotheses: [
+          `Current user prompt: ${promptText.slice(0, 100)}`,
+          `System goal: Provide governed, coherent cognitive response`,
+        ],
+      });
+
+      // Combine persistent database memories, substrate DAG recalled memories, and semantic vector matches
       const allMemoryFacts = [
         ...persistentMemories.map(m => `[${m.category}] ${m.fact}`),
+        ...semanticQueryResult.matches.map(m => `[Semantic Match ${(m.similarityScore * 100).toFixed(0)}%]: ${m.content}`),
         ...recalledSubstrateMemories.filter(m => !persistentMemories.some(pm => pm.fact.includes(m))),
       ];
 

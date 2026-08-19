@@ -49,6 +49,8 @@ export class SensorStreamer {
   };
 
   private previousFrameData: Uint8ClampedArray | null = null;
+  private sampleCanvas: HTMLCanvasElement | null = null;
+  private sampleCtx: CanvasRenderingContext2D | null = null;
   private consecutiveStaticCycles = 0;
   private currentSamplingIntervalMs = 1000;
   private lastFrameEpochMs: number = Date.now();
@@ -342,17 +344,21 @@ export class SensorStreamer {
 
   private calculatePixelMotion(ctx: CanvasRenderingContext2D, width: number, height: number): number {
     try {
-      // Downsample for fast motion evaluation
+      // Downsample for fast motion evaluation using cached offscreen canvas
       const sampleW = 64;
       const sampleH = 48;
-      const sampleCanvas = document.createElement('canvas');
-      sampleCanvas.width = sampleW;
-      sampleCanvas.height = sampleH;
-      const sampleCtx = sampleCanvas.getContext('2d');
-      if (!sampleCtx) return 0;
+      if (!this.sampleCanvas) {
+        if (typeof document !== 'undefined') {
+          this.sampleCanvas = document.createElement('canvas');
+          this.sampleCanvas.width = sampleW;
+          this.sampleCanvas.height = sampleH;
+          this.sampleCtx = this.sampleCanvas.getContext('2d');
+        }
+      }
+      if (!this.sampleCtx) return 0;
 
-      sampleCtx.drawImage(ctx.canvas, 0, 0, sampleW, sampleH);
-      const imgData = sampleCtx.getImageData(0, 0, sampleW, sampleH);
+      this.sampleCtx.drawImage(ctx.canvas, 0, 0, sampleW, sampleH);
+      const imgData = this.sampleCtx.getImageData(0, 0, sampleW, sampleH);
       const currentPixels = imgData.data;
 
       if (!this.previousFrameData || this.previousFrameData.length !== currentPixels.length) {

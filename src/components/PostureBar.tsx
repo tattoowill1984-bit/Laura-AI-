@@ -23,13 +23,14 @@ export const PostureBar: React.FC<PostureBarProps> = ({
 
   useEffect(() => {
     const fetchPresence = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetch('/api/governance/visual-presence')
         .then((res) => res.json())
         .then((data) => setVisualPresence(data))
         .catch(() => {});
     };
     fetchPresence();
-    const interval = setInterval(fetchPresence, 4000);
+    const interval = setInterval(fetchPresence, 7000);
     return () => clearInterval(interval);
   }, []);
 

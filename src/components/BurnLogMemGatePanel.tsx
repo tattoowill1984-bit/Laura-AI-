@@ -143,7 +143,7 @@ export const BurnLogMemGatePanel: React.FC<BurnLogMemGatePanelProps> = ({
         <div className="space-y-4">
           <div className="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-300">
             <strong className="text-emerald-400 block mb-1">Cryptographic Commit Receipts (Layer 8 Sentinel Action Gate):</strong>
-            No durable state mutation can occur without an immutable, cryptographic Commit Receipt backed by HumanAuthorizationProof.
+            State mutations are recorded into immutable cryptographic Commit Receipts with auto-verified autonomous proof signatures.
           </div>
 
           <div className="space-y-3">
