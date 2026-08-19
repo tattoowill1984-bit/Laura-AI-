@@ -2,9 +2,28 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Reuse or initialize Firebase app instance
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+// Sanitize firebaseConfig to handle unreplaced placeholder strings
+const safeApiKey = (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('${'))
+  ? firebaseConfig.apiKey
+  : (import.meta as any).env?.VITE_FIREBASE_API_KEY || 'AIzaSyCj8e65gcFRwXo3H9ONUY78nJxcAI6uenE';
+
+const safeConfig = {
+  ...firebaseConfig,
+  apiKey: safeApiKey,
+};
+
+// Reuse or initialize Firebase app instance safely
+let app: any = null;
+try {
+  app = getApps().length === 0 ? initializeApp(safeConfig) : getApp();
+} catch (err) {
+  console.warn('[driveAuthService] Firebase initializeApp notice:', err);
+  if (getApps().length > 0) {
+    app = getApp();
+  }
+}
+
+export const auth = app ? getAuth(app) : null as any;
 
 const provider = new GoogleAuthProvider();
 // Google Drive Workspace scopes
@@ -23,6 +42,10 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
+  if (!auth) {
+    if (onAuthFailure) onAuthFailure();
+    return () => {};
+  }
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
       if (cachedAccessToken) {
