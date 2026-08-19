@@ -56,8 +56,19 @@ export class GeminiProvider implements ModelProvider {
             const configObj: any = {
               systemInstruction: `${systemPrompt}\n[ADVANCED THINKING MODE ACTIVE: Perform deep step-by-step cognitive reasoning, multi-perspective evaluation, and rigorous factual synthesis before formulating output.]`,
               temperature: options.temperature ?? 0.3,
-              tools: options.tools,
+              tools: options.tools || [
+                { googleSearch: {} }
+              ],
             };
+
+            if (options.tools && Array.isArray(options.tools)) {
+              const hasGoogleSearch = options.tools.some((t: any) => t.googleSearch !== undefined);
+              if (!hasGoogleSearch) {
+                configObj.tools = [...options.tools, { googleSearch: {} }];
+              }
+            }
+
+            configObj.toolConfig = { includeServerSideToolInvocations: true };
 
             // thinkingConfig is supported on gemini-3.7-flash
             if (modelName === 'gemini-3.7-flash') {
@@ -161,10 +172,11 @@ export class GeminiProvider implements ModelProvider {
               }
             }
 
+            const groundingMetadata = candidate?.groundingMetadata;
             const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
             const out = textParts.trim() || res.text || '';
             if (out) {
-              return { text: out, modelUsed: modelName, fallbackUsed: false, providerName: this.name };
+              return { text: out, modelUsed: modelName, fallbackUsed: false, providerName: this.name, groundingMetadata };
             }
           } catch (e) {
             const err = e as any;

@@ -9,6 +9,7 @@ export interface ProviderResponse {
   modelUsed: string;
   fallbackUsed: boolean;
   providerName: string;
+  groundingMetadata?: any;
 }
 
 export interface ModelProvider {

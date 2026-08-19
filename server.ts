@@ -1014,7 +1014,10 @@ Notes: ${extraction.notes}`,
           const adapterRes = await modelProviderAdapter.generateResponse(contentsToPass, {
             systemInstruction,
             temperature: 0.3,
-            tools: [{ functionDeclarations: webToolDeclarations }],
+            tools: [
+              { functionDeclarations: webToolDeclarations },
+              { googleSearch: {} }
+            ],
           });
 
           responseText = adapterRes.text;
@@ -1024,6 +1027,8 @@ Notes: ${extraction.notes}`,
             execution: adapterRes.fallbackUsed ? 'NON_LLM' : 'LLM',
             fallback: adapterRes.fallbackUsed,
             reason: adapterRes.fallbackUsed ? 'MODEL_FALLBACK' : null,
+            groundingMetadata: adapterRes.groundingMetadata || undefined,
+            externalObservation: activeExternalObs || undefined,
           };
           console.log(`[Laura AI] Model completion succeeded using '${adapterRes.modelUsed}'.`);
         } catch (modelErr: any) {

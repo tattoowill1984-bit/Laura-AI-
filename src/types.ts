@@ -260,6 +260,8 @@ export interface ExecutionMetadata {
   fallback: boolean;
   reason: string | null;
   toolExecution?: any;
+  groundingMetadata?: any;
+  externalObservation?: any;
 }
 
 export interface ChatMessage {
