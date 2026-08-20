@@ -2,11 +2,17 @@ import crypto from 'crypto';
 import {
   AutonomyTier,
   BurnLogEntry,
+  CapabilityAllocation,
+  CapabilityChangeEvent,
+  CapabilityId,
+  CapabilityStatus,
   CommitReceipt,
   DefensivePosture,
   EpistemicState,
   ErrorObject,
   MemGateReceipt,
+  NoveltyDetectionReport,
+  NoveltyHypothesis,
   ObservationEnvelope,
   Proposal,
   SubsystemAuditInfo,
@@ -17,6 +23,8 @@ import {
 import { TinyArtificialUniverseSandbox } from './tauSandbox';
 import { SentinelSubsystemRegistry } from './subsystemRegistry';
 import { GabbyCognitiveSubstrate } from './gabbySubstrate';
+import { selfStateManager } from './selfState';
+import { epistemicNoveltyDetector } from './noveltyDetector';
 
 export class SentinelMutationKernel {
   private posture: DefensivePosture = 'NORMAL';
@@ -47,6 +55,7 @@ export class SentinelMutationKernel {
   private memGateReceipts: MemGateReceipt[] = [];
   private errorObjects: ErrorObject[] = [];
   private proposals: Proposal[] = [];
+  private capabilityChangeLedger: CapabilityChangeEvent[] = [];
 
   constructor() {
     this.tauSandbox = new TinyArtificialUniverseSandbox();
@@ -59,6 +68,9 @@ export class SentinelMutationKernel {
       'System initialization check: Membrane active and enforcing boundary.',
       'NORMAL'
     );
+
+    // Initial security protocol capability evaluation
+    this.evaluateAndEnforceCapabilityAllocation('INITIALIZATION_BASELINE', 0);
   }
 
   public getPosture(): DefensivePosture {
@@ -75,6 +87,9 @@ export class SentinelMutationKernel {
       this.epistemicState.boundaryHealth = Math.max(this.epistemicState.boundaryHealth, 85);
       this.epistemicState.persistenceTrajectory = 'STABLE';
     }
+
+    // Re-evaluate capability allocation under new defensive posture
+    this.evaluateAndEnforceCapabilityAllocation(`DEFENSIVE_POSTURE_CHANGE_${old}_TO_${newPosture}`, 0);
   }
 
   public getCurrentTier(): AutonomyTier {
@@ -454,4 +469,274 @@ export class SentinelMutationKernel {
   public getGabbySubstrate(): GabbyCognitiveSubstrate {
     return this.gabbySubstrate;
   }
+
+  /**
+   * DYNAMIC CAPABILITY ALLOCATION ENGINE
+   * Monitors Self-Model active_capabilities and grants or revokes specific tools or sensor streams
+   * based on security protocols (Posture, Tier, Task Requirements, Risk Scores).
+   * All grants/revocations are strictly logged in the Append-Only Ledger.
+   */
+  public evaluateAndEnforceCapabilityAllocation(
+    taskRequirement: string = 'ROUTINE_PERCEPTION_CYCLE',
+    riskScore: number = 0
+  ): CapabilityAllocation[] {
+    this.subsystemRegistry.touchSubsystem('SUB_CAPABILITY_GOVERNANCE', `Evaluating capabilities for task: ${taskRequirement}`);
+    const currentState = selfStateManager.getState();
+    const existingCapabilities: CapabilityAllocation[] = currentState.active_capabilities || [];
+
+    const updatedCapabilities: CapabilityAllocation[] = existingCapabilities.map((cap) => {
+      let nextStatus: CapabilityStatus = cap.status;
+      let reason = cap.reason;
+
+      // SECURITY PROTOCOL RULES
+      if (this.posture === 'STONEWALL') {
+        // STONEWALL posture revokes all external streams, mutation, and inter-AI channels
+        if (['DATABASE_MUTATION_TOOL', 'INTER_AI_CHANNEL', 'CAMERA_STREAM', 'AUDIO_STREAM', 'WEB_SEARCH_TOOL', 'PERSISTENT_MEMORY_WRITE'].includes(cap.id)) {
+          nextStatus = 'REVOKED';
+          reason = `Revoked by Security Protocol: STONEWALL defensive posture active. Membrane locked.`;
+        } else if (cap.id === 'RECURSIVE_CODE_EXECUTION') {
+          nextStatus = 'RESTRICTED_APPROVAL_REQUIRED';
+          reason = `Restricted by Security Protocol: STONEWALL posture requires manual proof signature.`;
+        }
+      } else if (this.posture === 'RAPTOR') {
+        // RAPTOR posture revokes high-risk mutations and inter-AI channels
+        if (['INTER_AI_CHANNEL', 'DATABASE_MUTATION_TOOL'].includes(cap.id)) {
+          nextStatus = 'REVOKED';
+          reason = `Revoked by Security Protocol: RAPTOR elevated threat posture active. Outbound/mutation frozen.`;
+        } else if (['WEB_SEARCH_TOOL', 'RECURSIVE_CODE_EXECUTION'].includes(cap.id)) {
+          nextStatus = 'RESTRICTED_APPROVAL_REQUIRED';
+          reason = `Restricted by Security Protocol: RAPTOR posture requires human proof signature for external tools.`;
+        } else {
+          nextStatus = 'GRANTED';
+          reason = `Granted under RAPTOR posture. Bounded perception active.`;
+        }
+      } else if (riskScore > 65) {
+        // High risk score forces restrictions on critical tools
+        if (['DATABASE_MUTATION_TOOL', 'RECURSIVE_CODE_EXECUTION', 'INTER_AI_CHANNEL'].includes(cap.id)) {
+          nextStatus = 'RESTRICTED_APPROVAL_REQUIRED';
+          reason = `Restricted by Security Protocol: Task risk score (${riskScore}) exceeds safe threshold (65).`;
+        }
+      } else if (this.posture === 'NORMAL' || this.posture === 'DUCK') {
+        // NORMAL / DUCK default grants
+        if (cap.status === 'REVOKED' || cap.status === 'RESTRICTED_APPROVAL_REQUIRED') {
+          nextStatus = 'GRANTED';
+          reason = `Granted by Security Protocol: Baseline posture (${this.posture}) and nominal risk score (${riskScore}).`;
+        }
+      }
+
+      // Check if status changed
+      if (nextStatus !== cap.status) {
+        const action = nextStatus === 'GRANTED' ? 'GRANT' : nextStatus === 'REVOKED' ? 'REVOKE' : 'RESTRICT';
+        
+        // 1. Log in Append-Only Ledger (BurnLog)
+        this.recordBurnLog(
+          `Security Protocol Invariant :: Capability ${action}`,
+          `Capability [${cap.name} (${cap.id})] status mutated from ${cap.status} -> ${nextStatus}. Reason: ${reason}`,
+          this.posture
+        );
+
+        // 2. Create Merkle Node in Gabby Substrate DAG
+        const merkleResult = this.gabbySubstrate.recordObservationAndVerify(
+          `CAPABILITY_ALLOCATION_EVENT :: [${action}] ${cap.id} -> ${nextStatus} | Reason: ${reason} | RiskScore: ${riskScore}`,
+          0.95
+        );
+
+        // 3. Log in Capability Change Ledger
+        const event: CapabilityChangeEvent = {
+          id: `CAP-EVENT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          timestamp: new Date().toISOString(),
+          capabilityId: cap.id,
+          action,
+          reason,
+          posture: this.posture,
+          tier: this.currentTier,
+          riskScore,
+          ledgerReceiptId: `BURN-${Date.now()}`,
+          merkleHash: merkleResult.node.merkleHash,
+        };
+
+        this.capabilityChangeLedger.unshift(event);
+        if (this.capabilityChangeLedger.length > 50) this.capabilityChangeLedger.pop();
+      }
+
+      return {
+        ...cap,
+        status: nextStatus,
+        reason,
+        lastUpdated: new Date().toISOString(),
+      };
+    });
+
+    // Save updated active_capabilities in Self-Model state
+    selfStateManager.updateState({ active_capabilities: updatedCapabilities });
+    return updatedCapabilities;
+  }
+
+  public grantCapability(
+    capabilityId: CapabilityId,
+    reason: string,
+    author: string = 'OPERATOR_AUTONOMOUS'
+  ): CapabilityAllocation {
+    const currentState = selfStateManager.getState();
+    const capabilities = currentState.active_capabilities || [];
+    const target = capabilities.find((c) => c.id === capabilityId);
+
+    if (!target) {
+      throw new Error(`Capability [${capabilityId}] not recognized in Self-Model registry.`);
+    }
+
+    target.status = 'GRANTED';
+    target.reason = `Explicit Grant by ${author}: ${reason}`;
+    target.lastUpdated = new Date().toISOString();
+
+    // Log to Append-Only Ledger
+    this.recordBurnLog(
+      'Capability Grant Authorization',
+      `Capability [${target.name}] explicitly GRANTED by ${author}. Reason: ${reason}`,
+      this.posture
+    );
+
+    const merkleResult = this.gabbySubstrate.recordObservationAndVerify(
+      `EXPLICIT_CAPABILITY_GRANT :: ${capabilityId} by ${author} | Reason: ${reason}`,
+      0.98
+    );
+
+    const event: CapabilityChangeEvent = {
+      id: `CAP-GRANT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString(),
+      capabilityId,
+      action: 'GRANT',
+      reason,
+      posture: this.posture,
+      tier: this.currentTier,
+      riskScore: 0,
+      ledgerReceiptId: `BURN-${Date.now()}`,
+      merkleHash: merkleResult.node.merkleHash,
+    };
+
+    this.capabilityChangeLedger.unshift(event);
+    selfStateManager.updateState({ active_capabilities: capabilities });
+
+    return target;
+  }
+
+  public revokeCapability(
+    capabilityId: CapabilityId,
+    reason: string,
+    author: string = 'GOVERNANCE_KERNEL'
+  ): CapabilityAllocation {
+    const currentState = selfStateManager.getState();
+    const capabilities = currentState.active_capabilities || [];
+    const target = capabilities.find((c) => c.id === capabilityId);
+
+    if (!target) {
+      throw new Error(`Capability [${capabilityId}] not recognized in Self-Model registry.`);
+    }
+
+    target.status = 'REVOKED';
+    target.reason = `Explicit Revocation by ${author}: ${reason}`;
+    target.lastUpdated = new Date().toISOString();
+
+    // Log to Append-Only Ledger
+    this.recordBurnLog(
+      'Capability Revocation Enforcement',
+      `Capability [${target.name}] explicitly REVOKED by ${author}. Reason: ${reason}`,
+      this.posture
+    );
+
+    const merkleResult = this.gabbySubstrate.recordObservationAndVerify(
+      `EXPLICIT_CAPABILITY_REVOCATION :: ${capabilityId} by ${author} | Reason: ${reason}`,
+      0.98
+    );
+
+    const event: CapabilityChangeEvent = {
+      id: `CAP-REVOKE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString(),
+      capabilityId,
+      action: 'REVOKE',
+      reason,
+      posture: this.posture,
+      tier: this.currentTier,
+      riskScore: 0,
+      ledgerReceiptId: `BURN-${Date.now()}`,
+      merkleHash: merkleResult.node.merkleHash,
+    };
+
+    this.capabilityChangeLedger.unshift(event);
+    selfStateManager.updateState({ active_capabilities: capabilities });
+
+    return target;
+  }
+
+  public getCapabilityChangeLedger(): CapabilityChangeEvent[] {
+    return [...this.capabilityChangeLedger];
+  }
+
+  public getCapabilitiesState(): CapabilityAllocation[] {
+    return selfStateManager.getState().active_capabilities || [];
+  }
+
+  /**
+   * EPISTEMIC NOVELTY DETECTION ENGINE
+   * Analyzes incoming data & world model updates for statistical deviations (+σ).
+   * Automatically generates new hypotheses and injects them into Self-Model 'active_hypotheses'
+   * for evaluation by the Generator-Critic loop.
+   */
+  public analyzeAndIncorporateNovelty(
+    content: string,
+    worldGraphNodeDeltaCount: number = 0,
+    predictionErrorDelta: number = 0.0
+  ): NoveltyDetectionReport {
+    this.subsystemRegistry.touchSubsystem('SUB_EPISTEMIC_NOVELTY', 'Analyzing novelty statistical deviations');
+    
+    // 1. Run statistical deviation analysis
+    const report = epistemicNoveltyDetector.analyzeNovelty(
+      content,
+      this.epistemicState,
+      worldGraphNodeDeltaCount,
+      predictionErrorDelta
+    );
+
+    // 2. If novelty is detected, automatically add generated hypotheses to Self-Model active_hypotheses
+    if (report.isNovel && report.generatedHypotheses.length > 0) {
+      const currentSelfState = selfStateManager.getState();
+      const existingHypotheses = currentSelfState.active_hypotheses || [];
+
+      // Combine & keep up to 20 active hypotheses
+      const updatedHypotheses = [...report.generatedHypotheses, ...existingHypotheses].slice(0, 20);
+      selfStateManager.updateState({ active_hypotheses: updatedHypotheses });
+
+      // 3. Inject hypotheses into TAU Sandbox Graph
+      report.generatedHypotheses.forEach((hyp) => {
+        this.tauSandbox.addNode({
+          id: hyp.id,
+          label: hyp.title,
+          category: 'HYPOTHESIS',
+          confidence: Math.round(hyp.plausibilityScore * 100),
+          uncertainty: Math.round((1 - hyp.plausibilityScore) * 100),
+          timestamp: hyp.timestamp,
+          provenanceHash: hyp.sourceObservationHash,
+          metadata: {
+            falsificationCondition: hyp.falsificationCondition,
+            competingTheory: hyp.competingTheory,
+            deviationZScore: hyp.statisticalDeviationZScore,
+          },
+        });
+      });
+
+      // 4. Update Epistemic State metrics
+      this.epistemicState.explorationPressure = Math.min(100, this.epistemicState.explorationPressure + 8);
+      this.epistemicState.volatility = Math.min(100, Math.max(10, Math.round(report.statisticalDeviationZScore * 12)));
+
+      // 5. Log in Append-Only Ledger
+      this.recordBurnLog(
+        'Epistemic Novelty Detection & Hypothesis Ingestion',
+        `Novelty score: ${report.noveltyScore}% (+${report.statisticalDeviationZScore}σ). Auto-generated ${report.generatedHypotheses.length} hypotheses for Generator-Critic loop.`,
+        this.posture
+      );
+    }
+
+    return report;
+  }
 }
+

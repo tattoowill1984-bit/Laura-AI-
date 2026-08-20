@@ -45,7 +45,7 @@ export class GeminiProvider implements ModelProvider {
     const systemPrompt = options.systemInstruction || `${personaData.systemPrompt}\n${personaData.boundaries.map(b => `- ${b}`).join('\n')}`;
 
     if (ai) {
-      const preferredModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
+      const preferredModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
       for (const modelName of preferredModels) {
         let attempts = 0;
         const maxAttempts = 2;
@@ -70,8 +70,8 @@ export class GeminiProvider implements ModelProvider {
 
             configObj.toolConfig = { includeServerSideToolInvocations: true };
 
-            // thinkingConfig is supported on gemini-2.5-flash / gemini-3.7-flash
-            if (modelName.includes('2.5') || modelName.includes('3.7')) {
+            // thinkingConfig is supported on gemini-3.6-flash / gemini-3.7-flash
+            if (modelName.includes('3.6') || modelName.includes('3.7') || modelName.includes('3.5')) {
               configObj.thinkingConfig = {
                 thinkingBudget: 1024,
               };
@@ -197,15 +197,15 @@ export class GeminiProvider implements ModelProvider {
             } else if (isRateLimitOr503) {
               // Try lightweight fast fallback without tool overhead if quota/rate limit was hit
               try {
-                console.log(`[GeminiProvider] Quota/Rate limit encountered on ${modelName}. Attempting lightweight fallback on gemini-2.5-flash / gemini-1.5-flash...`);
+                console.log(`[GeminiProvider] Quota/Rate limit encountered on ${modelName}. Attempting lightweight fallback on gemini-3.6-flash...`);
                 const fallbackRes = await ai.models.generateContent({
-                  model: 'gemini-1.5-flash',
+                  model: 'gemini-3.6-flash',
                   contents,
                   config: { systemInstruction: systemPrompt, temperature: 0.3 },
                 });
                 const fallbackText = fallbackRes.text || fallbackRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
                 if (fallbackText && fallbackText.trim()) {
-                  return { text: fallbackText.trim(), modelUsed: 'gemini-1.5-flash', fallbackUsed: true, providerName: this.name };
+                  return { text: fallbackText.trim(), modelUsed: 'gemini-3.6-flash', fallbackUsed: true, providerName: this.name };
                 }
               } catch (fallbackErr) {
                 console.warn('[GeminiProvider] Lightweight fallback attempt note:', (fallbackErr as Error)?.message);

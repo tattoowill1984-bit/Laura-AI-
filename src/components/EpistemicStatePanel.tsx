@@ -13,8 +13,11 @@ import {
   GitCommit,
   Sparkles,
   Filter,
+  Lightbulb,
+  Compass,
+  FileCode,
 } from 'lucide-react';
-import { EpistemicState, HealthMetrics } from '../types';
+import { EpistemicState, HealthMetrics, NoveltyHypothesis, NoveltyDetectionReport } from '../types';
 import { PredictionErrorRecord } from '../engine/vnext/types';
 
 interface EpistemicStatePanelProps {
@@ -36,7 +39,11 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
   const [filter, setFilter] = useState<'ALL' | 'HIGH_ERROR' | 'PARADIGM_SHIFT'>('ALL');
   const [isSimulating, setIsSimulating] = useState(false);
 
-  const fetchTensors = async () => {
+  const [activeHypotheses, setActiveHypotheses] = useState<NoveltyHypothesis[]>([]);
+  const [latestNoveltyReport, setLatestNoveltyReport] = useState<NoveltyDetectionReport | null>(null);
+  const [isAnalyzingNovelty, setIsAnalyzingNovelty] = useState(false);
+
+  const fetchTensorsAndNovelty = async () => {
     try {
       const res = await fetch('/api/vnext/world-model-tensors');
       if (res.ok) {
@@ -45,14 +52,20 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
           setPredictionRecords(data.recentPredictionErrors);
         }
       }
+
+      const noveltyRes = await fetch('/api/epistemic/novelty');
+      if (noveltyRes.ok) {
+        const noveltyData = await noveltyRes.json();
+        if (noveltyData.activeHypotheses) setActiveHypotheses(noveltyData.activeHypotheses);
+      }
     } catch (e) {
       // Fallback to local state
     }
   };
 
   useEffect(() => {
-    fetchTensors();
-    const interval = setInterval(fetchTensors, 4000);
+    fetchTensorsAndNovelty();
+    const interval = setInterval(fetchTensorsAndNovelty, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -61,6 +74,30 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
       setPredictionRecords(predictionErrors);
     }
   }, [predictionErrors]);
+
+  const handleSimulateNovelty = async () => {
+    setIsAnalyzingNovelty(true);
+    try {
+      const res = await fetch('/api/epistemic/novelty/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: 'Anomalous multimodal perception event: User presented unexpected quantum computing circuit diagram and cross-modal audio harmonic frequency spike.',
+          worldGraphNodeDeltaCount: 3,
+          predictionErrorDelta: 0.28,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.noveltyReport) setLatestNoveltyReport(data.noveltyReport);
+        if (data.activeHypotheses) setActiveHypotheses(data.activeHypotheses);
+      }
+    } catch (e) {
+      console.error('Failed analyzing novelty:', e);
+    } finally {
+      setIsAnalyzingNovelty(false);
+    }
+  };
 
   const handleSimulateError = async () => {
     setIsSimulating(true);
@@ -77,7 +114,7 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
         }),
       });
       if (res.ok) {
-        await fetchTensors();
+        await fetchTensorsAndNovelty();
       }
     } catch (e) {
       console.error('Failed simulating prediction error:', e);
@@ -240,7 +277,7 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
             </button>
 
             <button
-              onClick={fetchTensors}
+              onClick={fetchTensorsAndNovelty}
               className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded-xl transition-all cursor-pointer"
               title="Refresh Prediction Records"
             >
@@ -410,6 +447,95 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
                 </div>
               );
             })
+          )}
+        </div>
+      </div>
+
+      {/* Epistemic Working Space Novelty Detection & Active Hypotheses */}
+      <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-400" />
+              Epistemic Working Space :: Novelty Detection & Active Hypotheses Engine
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Analyzes incoming sensory streams & world model deltas for statistical Z-score deviations. Auto-generates hypotheses injected directly into Self-Model <code className="text-amber-300 font-mono">active_hypotheses</code> for consideration.
+            </p>
+          </div>
+
+          <button
+            onClick={handleSimulateNovelty}
+            disabled={isAnalyzingNovelty}
+            className="px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${isAnalyzingNovelty ? 'animate-spin' : ''}`} />
+            Simulate Novel Observation Event
+          </button>
+        </div>
+
+        {/* Latest Novelty Report if present */}
+        {latestNoveltyReport && (
+          <div className="p-4 bg-purple-950/20 rounded-xl border border-purple-500/30 space-y-3">
+            <div className="flex justify-between items-center text-xs font-mono">
+              <span className="font-bold text-purple-300 flex items-center gap-1.5">
+                <Compass className="w-4 h-4 text-purple-400" />
+                Novelty Analysis Report :: {latestNoveltyReport.id}
+              </span>
+              <span className="text-purple-400 font-bold">
+                Deviation: +{latestNoveltyReport.statisticalDeviationZScore}σ
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-200">
+              Novelty Score: <strong className="text-amber-300">{latestNoveltyReport.noveltyScore}%</strong> | Statistical Z-Score Deviation: <strong className="text-cyan-300">+{latestNoveltyReport.statisticalDeviationZScore}σ</strong> | Epistemic Entropy: <strong className="text-purple-300">{latestNoveltyReport.epistemicEntropy}</strong>
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {latestNoveltyReport.detectedDeviations.map((dev, idx) => (
+                <span key={idx} className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-[11px] font-mono text-cyan-300">
+                  {dev}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active Hypotheses in Self-Model */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <Compass className="w-4 h-4 text-cyan-400" />
+            Self-Model Active Hypotheses Pool ({activeHypotheses.length})
+          </h4>
+
+          {activeHypotheses.length === 0 ? (
+            <p className="text-slate-500 text-xs text-center py-6">No active hypotheses pending in Self-Model.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeHypotheses.map((hyp) => (
+                <div key={hyp.id} className="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs font-bold text-amber-300">{hyp.title}</span>
+                    <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-[10px] font-mono font-bold text-cyan-400">
+                      Plausibility: {(hyp.plausibilityScore * 100).toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed">{hyp.competingTheory}</p>
+
+                  <div className="p-2 bg-slate-950 rounded border border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-1">
+                    <div>
+                      <span className="text-slate-500">Novelty Rating:</span>{' '}
+                      <span className="text-purple-300">{hyp.noveltyScore}% (+{hyp.statisticalDeviationZScore}σ)</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Falsification Protocol:</span>{' '}
+                      <span className="text-emerald-300">{hyp.falsificationCondition}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

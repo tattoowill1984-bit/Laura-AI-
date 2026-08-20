@@ -277,6 +277,120 @@ async function startServer() {
     }
   });
 
+  // 4.1 Dynamic Capability Allocation System Routes
+  app.get('/api/governance/capabilities', (req, res) => {
+    try {
+      res.json({
+        activeCapabilities: kernel.getCapabilitiesState(),
+        capabilityChangeLedger: kernel.getCapabilityChangeLedger(),
+        posture: kernel.getPosture(),
+        tier: kernel.getCurrentTier(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching capability allocations' });
+    }
+  });
+
+  app.post('/api/governance/capabilities/evaluate', (req, res) => {
+    try {
+      const { taskRequirement, riskScore } = req.body || {};
+      const updated = kernel.evaluateAndEnforceCapabilityAllocation(
+        taskRequirement || 'EXPLICIT_EVALUATION_REQUEST',
+        riskScore || 0
+      );
+      res.json({
+        success: true,
+        activeCapabilities: updated,
+        capabilityChangeLedger: kernel.getCapabilityChangeLedger(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Capability evaluation failed' });
+    }
+  });
+
+  app.post('/api/governance/capabilities/grant', (req, res) => {
+    try {
+      const { capabilityId, reason, author } = req.body || {};
+      if (!capabilityId) {
+        return res.status(400).json({ error: 'capabilityId is required' });
+      }
+      const granted = kernel.grantCapability(
+        capabilityId,
+        reason || 'Manual Grant Authorization',
+        author || 'OPERATOR_AUTONOMOUS'
+      );
+      res.json({
+        success: true,
+        grantedCapability: granted,
+        activeCapabilities: kernel.getCapabilitiesState(),
+        capabilityChangeLedger: kernel.getCapabilityChangeLedger(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Capability grant failed' });
+    }
+  });
+
+  app.post('/api/governance/capabilities/revoke', (req, res) => {
+    try {
+      const { capabilityId, reason, author } = req.body || {};
+      if (!capabilityId) {
+        return res.status(400).json({ error: 'capabilityId is required' });
+      }
+      const revoked = kernel.revokeCapability(
+        capabilityId,
+        reason || 'Manual Security Revocation',
+        author || 'GOVERNANCE_KERNEL'
+      );
+      res.json({
+        success: true,
+        revokedCapability: revoked,
+        activeCapabilities: kernel.getCapabilitiesState(),
+        capabilityChangeLedger: kernel.getCapabilityChangeLedger(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Capability revocation failed' });
+    }
+  });
+
+  // 4.2 Epistemic Working Space Novelty Detection Routes
+  app.get('/api/epistemic/novelty', (req, res) => {
+    try {
+      const currentState = selfStateManager.getState();
+      res.json({
+        activeHypotheses: currentState.active_hypotheses || [],
+        epistemicState: kernel.getEpistemicState(),
+        tauGraph: kernel.getTAUGraph(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching epistemic novelty state' });
+    }
+  });
+
+  app.post('/api/epistemic/novelty/analyze', (req, res) => {
+    try {
+      const { content, worldGraphNodeDeltaCount, predictionErrorDelta } = req.body || {};
+      if (!content) {
+        return res.status(400).json({ error: 'content payload is required for novelty analysis' });
+      }
+
+      const report = kernel.analyzeAndIncorporateNovelty(
+        content,
+        worldGraphNodeDeltaCount || 0,
+        predictionErrorDelta || 0.0
+      );
+
+      const currentState = selfStateManager.getState();
+      res.json({
+        success: true,
+        noveltyReport: report,
+        activeHypotheses: currentState.active_hypotheses || [],
+        epistemicState: kernel.getEpistemicState(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Novelty analysis failed' });
+    }
+  });
+
   // 5. Submit Proposal
   app.post('/api/kernel/propose', (req, res) => {
     try {
@@ -615,10 +729,22 @@ async function startServer() {
         await governedLearningEngine.processGovernedLearning(candidateProposal);
       }
 
-      // Step 0.1: Retrieve profile's persistent memories & query semantic similarity store
+      // Step 0.1: Dynamic Capability Allocation & Epistemic Novelty Detection
+      kernel.evaluateAndEnforceCapabilityAllocation('CHAT_INTERACTION_TURN', 10);
+      const noveltyReport = kernel.analyzeAndIncorporateNovelty(
+        promptText,
+        (attachments?.length || 0) + (cameraFrameBase64 ? 1 : 0),
+        0.05
+      );
+
+      // Step 0.2: Retrieve profile's persistent memories & query semantic similarity store
       const persistentMemories = persistentStorage.getMemoriesForProfile(activeProfileId);
       const gabbyVerification = gabbySubstrate.recordObservationAndVerify(promptText);
       const recalledSubstrateMemories = gabbySubstrate.getRecalledMemories(promptText);
+
+      // Get active hypotheses from Self-Model for semantic vector search
+      const currentSelfState = selfStateManager.getState();
+      const activeHypothesesList = (currentSelfState.active_hypotheses || []).map(h => `${h.title}: ${h.competingTheory}`);
 
       // Execute semantic vector query against current input & active hypotheses
       const semanticQueryResult = semanticMemoryQueryEngine.queryMemories(promptText, gabbySubstrate, {
@@ -627,7 +753,8 @@ async function startServer() {
         topK: 8,
         activeHypotheses: [
           `Current user prompt: ${promptText.slice(0, 100)}`,
-          `System goal: Provide governed, coherent cognitive response`,
+          `Novelty Z-Score: +${noveltyReport.statisticalDeviationZScore}σ`,
+          ...activeHypothesesList.slice(0, 3),
         ],
       });
 

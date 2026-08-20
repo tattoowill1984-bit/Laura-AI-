@@ -131,6 +131,28 @@ export class TinyArtificialUniverseSandbox {
     };
   }
 
+  public addNode(nodePartial: Partial<TAUNode> & { label: string }): TAUNode {
+    const provHash = nodePartial.provenanceHash || crypto.createHash('sha256').update(`${nodePartial.label}:${Date.now()}`).digest('hex');
+    const newNode: TAUNode = {
+      id: nodePartial.id || `TAU-NODE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      label: nodePartial.label,
+      category: nodePartial.category || 'HYPOTHESIS',
+      confidence: nodePartial.confidence ?? 75,
+      uncertainty: nodePartial.uncertainty ?? 25,
+      timestamp: nodePartial.timestamp || new Date().toISOString(),
+      provenanceHash: provHash,
+      metadata: nodePartial.metadata || {
+        sandboxedNote: 'Observation ≠ Truth. Node stored inside TAU sandbox context.',
+      },
+    };
+
+    this.graph.nodes.unshift(newNode);
+    if (this.graph.nodes.length > 60) this.graph.nodes.pop();
+
+    this.recalculateTopology();
+    return newNode;
+  }
+
   public addObservedHypothesisOrConcept(
     label: string,
     category: TAUNodeCategory,

@@ -207,6 +207,69 @@ export interface BurnLogEntry {
   envelopeSha256: string;
 }
 
+export type CapabilityId =
+  | 'CAMERA_STREAM'
+  | 'AUDIO_STREAM'
+  | 'WEB_SEARCH_TOOL'
+  | 'DATABASE_MUTATION_TOOL'
+  | 'INTER_AI_CHANNEL'
+  | 'RECURSIVE_CODE_EXECUTION'
+  | 'PERSISTENT_MEMORY_WRITE';
+
+export type CapabilityStatus = 'GRANTED' | 'REVOKED' | 'RESTRICTED_APPROVAL_REQUIRED';
+
+export interface CapabilityAllocation {
+  id: CapabilityId;
+  name: string;
+  category: 'SENSOR_STREAM' | 'TOOL' | 'STORAGE_MUTATION' | 'INTER_AI';
+  status: CapabilityStatus;
+  grantedBy: string;
+  lastUpdated: string;
+  reason: string;
+  requiredPosture: DefensivePosture[];
+  requiredTier: AutonomyTier;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+export interface CapabilityChangeEvent {
+  id: string;
+  timestamp: string;
+  capabilityId: CapabilityId;
+  action: 'GRANT' | 'REVOKE' | 'RESTRICT';
+  reason: string;
+  posture: DefensivePosture;
+  tier: AutonomyTier;
+  riskScore: number;
+  ledgerReceiptId: string;
+  merkleHash: string;
+}
+
+export interface NoveltyHypothesis {
+  id: string;
+  title: string;
+  competingTheory: string;
+  noveltyScore: number; // 0 - 100%
+  statisticalDeviationZScore: number;
+  falsificationCondition: string;
+  plausibilityScore: number; // 0.0 - 1.0
+  timestamp: string;
+  status: 'PROPOSED' | 'UNDER_CRITIQUE' | 'VERIFIED' | 'DISPROVED';
+  sourceObservationHash: string;
+}
+
+export interface NoveltyDetectionReport {
+  id: string;
+  timestamp: string;
+  noveltyScore: number; // 0 - 100%
+  statisticalDeviationZScore: number; // e.g. 2.45 sigma
+  isNovel: boolean;
+  detectedDeviations: string[];
+  generatedHypotheses: NoveltyHypothesis[];
+  epistemicEntropy: number;
+  wordEntropy: number;
+  predictionErrorDelta: number;
+}
+
 export interface MemGateReceipt {
   id: string;
   timestamp: string;
