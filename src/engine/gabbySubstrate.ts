@@ -1189,3 +1189,5 @@ export class GabbyCognitiveSubstrate {
     return SubstrateEvaluationHarness.runFullEvaluation(this.ledger, this.registry);
   }
 }
+
+export const gabbySubstrate = new GabbyCognitiveSubstrate();

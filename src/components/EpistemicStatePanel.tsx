@@ -42,6 +42,8 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
   const [activeHypotheses, setActiveHypotheses] = useState<NoveltyHypothesis[]>([]);
   const [latestNoveltyReport, setLatestNoveltyReport] = useState<NoveltyDetectionReport | null>(null);
   const [isAnalyzingNovelty, setIsAnalyzingNovelty] = useState(false);
+  const [experiments, setExperiments] = useState<any[]>([]);
+  const [isTestingHypothesis, setIsTestingHypothesis] = useState<boolean>(false);
 
   const fetchTensorsAndNovelty = async () => {
     try {
@@ -58,8 +60,33 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
         const noveltyData = await noveltyRes.json();
         if (noveltyData.activeHypotheses) setActiveHypotheses(noveltyData.activeHypotheses);
       }
+
+      const expRes = await fetch('/api/epistemic/hypotheses/experiments');
+      if (expRes.ok) {
+        const expData = await expRes.json();
+        if (expData.experiments) setExperiments(expData.experiments);
+        if (expData.activeHypotheses) setActiveHypotheses(expData.activeHypotheses);
+      }
     } catch (e) {
       // Fallback to local state
+    }
+  };
+
+  const handleRunHypothesisTest = async (hypothesisId?: string) => {
+    setIsTestingHypothesis(true);
+    try {
+      const res = await fetch('/api/epistemic/hypotheses/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hypothesisId }),
+      });
+      if (res.ok) {
+        await fetchTensorsAndNovelty();
+      }
+    } catch (e) {
+      console.error('Hypothesis test error:', e);
+    } finally {
+      setIsTestingHypothesis(false);
     }
   };
 
@@ -503,10 +530,21 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
 
         {/* Active Hypotheses in Self-Model */}
         <div className="space-y-3">
-          <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <Compass className="w-4 h-4 text-cyan-400" />
-            Self-Model Active Hypotheses Pool ({activeHypotheses.length})
-          </h4>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <Compass className="w-4 h-4 text-cyan-400" />
+              Self-Model Active Hypotheses Pool ({activeHypotheses.length})
+            </h4>
+
+            <button
+              onClick={() => handleRunHypothesisTest()}
+              disabled={isTestingHypothesis}
+              className="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isTestingHypothesis ? 'animate-spin' : ''}`} />
+              Run Proactive Testing Cycle
+            </button>
+          </div>
 
           {activeHypotheses.length === 0 ? (
             <p className="text-slate-500 text-xs text-center py-6">No active hypotheses pending in Self-Model.</p>
@@ -525,6 +563,12 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
 
                   <div className="p-2 bg-slate-950 rounded border border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-1">
                     <div>
+                      <span className="text-slate-500">Status:</span>{' '}
+                      <span className={`font-bold ${hyp.status === 'VERIFIED' ? 'text-emerald-400' : hyp.status === 'DISPROVED' ? 'text-rose-400' : 'text-amber-300'}`}>
+                        {hyp.status}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-slate-500">Novelty Rating:</span>{' '}
                       <span className="text-purple-300">{hyp.noveltyScore}% (+{hyp.statisticalDeviationZScore}σ)</span>
                     </div>
@@ -533,11 +577,53 @@ export const EpistemicStatePanel: React.FC<EpistemicStatePanelProps> = ({
                       <span className="text-emerald-300">{hyp.falsificationCondition}</span>
                     </div>
                   </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      onClick={() => handleRunHypothesisTest(hyp.id)}
+                      disabled={isTestingHypothesis}
+                      className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-cyan-400" />
+                      Test Hypothesis
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Proactive Hypothesis Experiments Ledger */}
+        {experiments.length > 0 && (
+          <div className="space-y-3 pt-4 border-t border-slate-800">
+            <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <GitCommit className="w-4 h-4 text-purple-400" />
+              Append-Only Ledger :: Proactive Hypothesis Experiment Receipts ({experiments.length})
+            </h4>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {experiments.map((exp: any) => (
+                <div key={exp.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono space-y-1.5">
+                  <div className="flex justify-between items-center text-slate-200">
+                    <span className="font-bold text-purple-300">{exp.hypothesisTitle}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${exp.status === 'EVALUATED_SUPPORTED' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30'}`}>
+                      {exp.status}
+                    </span>
+                  </div>
+
+                  <p className="text-slate-400 text-[11px] font-sans">{exp.executedResultSummary}</p>
+
+                  <div className="flex justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/60">
+                    <span>Experiment Type: <strong className="text-cyan-400">{exp.experimentType}</strong></span>
+                    <span>Plausibility Shift: {exp.plausibilityScoreBefore} → <strong className="text-amber-300">{exp.plausibilityScoreAfter}</strong></span>
+                    <span>Receipt: <strong className="text-slate-300">{exp.ledgerReceiptId}</strong></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* State Space Gauge Grid */}

@@ -87,6 +87,34 @@ export const ProfileAndMemoryModal: React.FC<ProfileAndMemoryModalProps> = ({
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [isSavingFact, setIsSavingFact] = useState(false);
 
+  // Memory Summarization Module state
+  const [summaryInput, setSummaryInput] = useState('');
+  const [memorySummaryResult, setMemorySummaryResult] = useState<any | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  const handleGenerateSummary = async () => {
+    if (!summaryInput.trim()) return;
+    setIsGeneratingSummary(true);
+    try {
+      const res = await fetch('/api/memory/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contextText: summaryInput,
+          profileId: activeProfile?.id || 'will-owner',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary) setMemorySummaryResult(data.summary);
+      }
+    } catch (e) {
+      console.error('Failed generating memory summary:', e);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
   // New profile creation
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfilePasscode, setNewProfilePasscode] = useState('');
@@ -442,6 +470,62 @@ export const ProfileAndMemoryModal: React.FC<ProfileAndMemoryModalProps> = ({
                 <MemoryNodeGraphViewer />
               ) : (
                 <>
+                  {/* Memory Retrieval & Summarization Module for Generator-Critic Loop */}
+                  <div className="p-4 bg-slate-950/80 border border-purple-500/30 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center">
+                      <strong className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                        <Brain className="w-4 h-4 text-purple-400" />
+                        Memory Retrieval & Summarization Module (Generator-Critic Context)
+                      </strong>
+                      <span className="text-[10px] font-mono text-cyan-400 font-bold">Vector-Grounded Engine</span>
+                    </div>
+
+                    <p className="text-xs text-slate-400">
+                      Query the Memory Store based on current context and active hypotheses in the Self-Model to synthesize a concise memory summary for informing the Generator-Critic loop.
+                    </p>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={summaryInput}
+                        onChange={(e) => setSummaryInput(e.target.value)}
+                        placeholder="Enter current query context, task goal, or hypothesis..."
+                        className="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGenerateSummary}
+                        disabled={isGeneratingSummary || !summaryInput.trim()}
+                        className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <Sparkles className={`w-3.5 h-3.5 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                        Synthesize Summary
+                      </button>
+                    </div>
+
+                    {memorySummaryResult && (
+                      <div className="p-3 bg-slate-900 rounded-xl border border-purple-500/30 space-y-2 text-xs font-mono">
+                        <div className="flex justify-between text-purple-300 font-bold">
+                          <span>Synthesized Context Summary</span>
+                          <span>Relevance: {memorySummaryResult.relevanceScore}%</span>
+                        </div>
+                        <p className="text-slate-200 font-sans leading-relaxed text-xs">{memorySummaryResult.conciseSummary}</p>
+
+                        {memorySummaryResult.hypothesisResonances?.length > 0 && (
+                          <div className="pt-2 border-t border-slate-800 space-y-1 text-[11px]">
+                            <span className="text-slate-400 block font-bold">Active Hypothesis Resonances:</span>
+                            {memorySummaryResult.hypothesisResonances.map((res: any, idx: number) => (
+                              <div key={idx} className="flex justify-between text-slate-300">
+                                <span>{res.hypothesisTitle}</span>
+                                <span className="text-amber-300 font-bold">{(res.resonanceFactor * 100).toFixed(0)}% resonance</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Add New Fact */}
               <form onSubmit={handleAddMemory} className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">

@@ -52,6 +52,8 @@ interface DatabaseSchema {
   profiles: UserProfile[];
   memories: LongTermMemoryItem[];
   chatHistories: StoredChatMessage[];
+  commitReceipts?: any[];
+  burnLogEntries?: any[];
   version: number;
 }
 
@@ -330,6 +332,18 @@ export class PersistentStorage {
         verifiedByOwner: true,
       },
     ];
+    this.saveDatabase();
+  }
+
+  public saveCommitReceipt(receipt: any) {
+    if (!this.db.commitReceipts) this.db.commitReceipts = [];
+    this.db.commitReceipts.unshift(receipt);
+    this.saveDatabase();
+  }
+
+  public saveBurnLogEntry(entry: any) {
+    if (!this.db.burnLogEntries) this.db.burnLogEntries = [];
+    this.db.burnLogEntries.unshift(entry);
     this.saveDatabase();
   }
 }

@@ -20,6 +20,10 @@ export const BurnLogMemGatePanel: React.FC<BurnLogMemGatePanelProps> = ({
   const [capabilityLedger, setCapabilityLedger] = useState<CapabilityChangeEvent[]>([]);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
+  const [marketplaceCatalog, setMarketplaceCatalog] = useState<any[]>([]);
+  const [evaluationReports, setEvaluationReports] = useState<Record<string, any>>({});
+  const [isDiscovering, setIsDiscovering] = useState<boolean>(false);
+
   const fetchCapabilities = async () => {
     try {
       const res = await fetch('/api/governance/capabilities');
@@ -33,11 +37,65 @@ export const BurnLogMemGatePanel: React.FC<BurnLogMemGatePanelProps> = ({
     }
   };
 
+  const fetchMarketplace = async () => {
+    setIsDiscovering(true);
+    try {
+      const res = await fetch('/api/capabilities/marketplace');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.discoverable) setMarketplaceCatalog(data.discoverable);
+      }
+    } catch (e) {
+      console.error('Marketplace fetch error:', e);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   useEffect(() => {
     fetchCapabilities();
+    fetchMarketplace();
     const interval = setInterval(fetchCapabilities, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleEvaluateCapability = async (capabilityId: string) => {
+    try {
+      const res = await fetch('/api/capabilities/marketplace/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capabilityId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.report) {
+          setEvaluationReports(prev => ({ ...prev, [capabilityId]: data.report }));
+        }
+      }
+    } catch (e) {
+      console.error('Evaluate capability error:', e);
+    }
+  };
+
+  const handleAcquireCapability = async (capabilityId: string) => {
+    try {
+      const res = await fetch('/api/capabilities/marketplace/acquire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capabilityId,
+          author: 'HUMAN_OPERATOR_COMMIT_GATE',
+          reason: 'Authorized via Cognitive Capability Marketplace UI',
+        }),
+      });
+      if (res.ok) {
+        await fetchCapabilities();
+        await fetchMarketplace();
+      }
+    } catch (e) {
+      console.error('Acquire capability error:', e);
+    }
+  };
 
   const handleGrant = async (capabilityId: string) => {
     try {
@@ -240,6 +298,85 @@ export const BurnLogMemGatePanel: React.FC<BurnLogMemGatePanelProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Capability Marketplace Catalog */}
+          <div className="space-y-4 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <strong className="text-purple-400 block text-xs font-mono mb-0.5">
+                  Synthetic Cognitive Organism :: Capability Marketplace
+                </strong>
+                <p className="text-xs text-slate-400">
+                  Allows the organism to discover available capabilities, evaluate their relevance and utility against current goals and Self-Model, and acquire them via Commit Gate authorization.
+                </p>
+              </div>
+
+              <button
+                onClick={fetchMarketplace}
+                disabled={isDiscovering}
+                className="px-3.5 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer"
+              >
+                <Radio className={`w-3.5 h-3.5 ${isDiscovering ? 'animate-spin' : ''}`} />
+                Scan Available Catalog
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {marketplaceCatalog.map((item) => {
+                const report = evaluationReports[item.id];
+                return (
+                  <div key={item.id} className="p-4 bg-slate-950 rounded-xl border border-purple-500/20 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-xs font-bold text-slate-100 block">{item.name}</span>
+                        <span className="text-[10px] font-mono text-purple-400">{item.id}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${item.isCurrentlyActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-900 text-slate-400 border-slate-800'}`}>
+                        {item.isCurrentlyActive ? 'ACTIVE' : 'DISCOVERED'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-300">{item.description}</p>
+                    <p className="text-[11px] font-mono text-slate-400 italic">"{item.documentation}"</p>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
+                      <div>Category: <span className="text-cyan-300">{item.category}</span></div>
+                      <div>Risk Level: <span className="text-amber-300">{item.riskLevel}</span></div>
+                    </div>
+
+                    {report && (
+                      <div className="p-2.5 bg-slate-900 rounded-lg border border-purple-500/30 text-[11px] font-mono space-y-1">
+                        <div className="flex justify-between text-purple-300 font-bold">
+                          <span>Utility Score: {report.utilityScore}%</span>
+                          <span>Commit Gate Req: {report.commitGateRequired ? 'YES' : 'NO'}</span>
+                        </div>
+                        <p className="text-slate-300 text-[10px] font-sans">{report.relevanceRationale}</p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
+                      <button
+                        onClick={() => handleEvaluateCapability(item.id)}
+                        className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-purple-300 border border-purple-500/30 rounded text-[11px] font-semibold transition-all cursor-pointer"
+                      >
+                        Evaluate Utility
+                      </button>
+
+                      {!item.isCurrentlyActive && (
+                        <button
+                          onClick={() => handleAcquireCapability(item.id)}
+                          className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <Key className="w-3 h-3 text-emerald-400" />
+                          Acquire via Commit Gate
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Capability Ledger Log */}

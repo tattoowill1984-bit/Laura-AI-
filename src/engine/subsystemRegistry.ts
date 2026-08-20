@@ -259,3 +259,5 @@ export class SentinelSubsystemRegistry {
     }
   }
 }
+
+export const subsystemRegistry = new SentinelSubsystemRegistry();

@@ -32,6 +32,8 @@ import {
   Brain,
   Clock,
   Eye,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { ChatMessage, FileAttachment, Proposal } from '../types';
 import { sensorStreamer } from '../sensors/SensorStreamer';
@@ -83,6 +85,15 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
   const [expandedEnvelopes, setExpandedEnvelopes] = useState<Record<string, boolean>>({});
   const [expandedFabrics, setExpandedFabrics] = useState<Record<string, boolean>>({});
+  const [copiedPromptMsgId, setCopiedPromptMsgId] = useState<string | null>(null);
+
+  const handleCopyPrompt = (msgId: string, text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedPromptMsgId(msgId);
+      setTimeout(() => setCopiedPromptMsgId(null), 2000);
+    }
+  };
 
   // Speech Output State
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
@@ -922,6 +933,27 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                 </span>
                 <span className="text-[10px] text-slate-500 font-mono">{msg.timestamp.split('T')[1]?.slice(0, 8)}</span>
               </div>
+
+              {/* Copy Prompt Button for User Messages */}
+              {msg.sender === 'USER' && (
+                <button
+                  onClick={() => handleCopyPrompt(msg.id, msg.text)}
+                  title="Copy Prompt to Clipboard"
+                  className="px-2 py-1 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800 border border-slate-800 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-medium"
+                >
+                  {copiedPromptMsgId === msg.id ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400 font-bold">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400" />
+                      <span>Copy Prompt</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               {/* Voice Readout Action Button for Gabby Messages */}
               {msg.sender !== 'USER' && (

@@ -253,4 +253,10 @@ export class TinyArtificialUniverseSandbox {
   private recalculateTopology() {
     this.graph.unresolvedQuestionTopologyCount = this.graph.nodes.filter((n) => n.category === 'QUESTION').length;
   }
+
+  public executeSimulation(hypothesisContext?: string) {
+    return this.simulateWorldStep(hypothesisContext);
+  }
 }
+
+export const tauSandboxEngine = new TinyArtificialUniverseSandbox();

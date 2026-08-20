@@ -46,6 +46,9 @@ import { heartbeatLoop } from './src/engine/heartbeat';
 import { activeContextWindow } from './src/memory/contextWindow';
 import { factsVault } from './src/memory/facts';
 import { semanticMemoryQueryEngine } from './src/memory/semanticMemoryQueryEngine';
+import { memorySummarizerEngine } from './src/memory/memorySummarizerEngine';
+import { capabilityMarketplaceEngine } from './src/engine/capabilityMarketplace';
+import { hypothesisTestingEngine } from './src/engine/hypothesisTestingEngine';
 import { modelProviderAdapter } from './src/engine/provider';
 import { toolRegistry } from './src/tools/registry';
 import { requiresConfirmation } from './src/tools/confirmation';
@@ -642,6 +645,104 @@ async function startServer() {
       res.json({ success: true, result });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Failed executing semantic memory query' });
+    }
+  });
+
+  // 2.2 Memory Summarization Module Route
+  app.post('/api/memory/summarize', async (req, res) => {
+    try {
+      const { contextText, profileId } = req.body || {};
+      if (!contextText || typeof contextText !== 'string') {
+        return res.status(400).json({ error: 'contextText string is required for memory summarization.' });
+      }
+      const summary = await memorySummarizerEngine.generateMemorySummary(contextText, profileId || 'will-owner');
+      res.json({ success: true, summary });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed generating memory summary' });
+    }
+  });
+
+  // 2.3 Synthetic Cognitive Organism Capability Marketplace Routes
+  app.get('/api/capabilities/marketplace', (req, res) => {
+    try {
+      const discoverable = capabilityMarketplaceEngine.discoverAvailableCapabilities();
+      const selfState = selfStateManager.getState();
+      res.json({
+        success: true,
+        discoverable,
+        activeCapabilities: selfState.active_capabilities,
+        posture: selfState.posture,
+        tier: selfState.tier,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed listing marketplace capabilities' });
+    }
+  });
+
+  app.post('/api/capabilities/marketplace/discover', (req, res) => {
+    try {
+      const discoverable = capabilityMarketplaceEngine.discoverAvailableCapabilities();
+      res.json({ success: true, count: discoverable.length, discoverable });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed discovering capabilities' });
+    }
+  });
+
+  app.post('/api/capabilities/marketplace/evaluate', (req, res) => {
+    try {
+      const { capabilityId, currentGoals } = req.body || {};
+      if (!capabilityId) {
+        return res.status(400).json({ error: 'capabilityId is required.' });
+      }
+      const report = capabilityMarketplaceEngine.evaluateCapabilityUtility(
+        capabilityId,
+        Array.isArray(currentGoals) ? currentGoals : ['ESTABLISH_EPISTEMIC_GROUND_TRUTH']
+      );
+      res.json({ success: true, report });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed evaluating capability utility' });
+    }
+  });
+
+  app.post('/api/capabilities/marketplace/acquire', (req, res) => {
+    try {
+      const { capabilityId, author, reason } = req.body || {};
+      if (!capabilityId) {
+        return res.status(400).json({ error: 'capabilityId is required.' });
+      }
+      const result = capabilityMarketplaceEngine.acquireCapabilityWithCommitGate(
+        capabilityId,
+        author || 'COGNITIVE_MARKETPLACE_ORGANISM',
+        reason || 'Marketplace Utility Evaluation Acquisition'
+      );
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed acquiring marketplace capability' });
+    }
+  });
+
+  // 2.4 Proactive Hypothesis Testing Engine Routes
+  app.get('/api/epistemic/hypotheses/experiments', (req, res) => {
+    try {
+      const history = hypothesisTestingEngine.getExperimentHistory();
+      const selfState = selfStateManager.getState();
+      res.json({
+        success: true,
+        experiments: history,
+        activeHypotheses: selfState.active_hypotheses,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching experiment history' });
+    }
+  });
+
+  app.post('/api/epistemic/hypotheses/test', async (req, res) => {
+    try {
+      const { hypothesisId } = req.body || {};
+      const result = await hypothesisTestingEngine.executeProactiveTestingCycle(hypothesisId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed executing proactive hypothesis testing cycle' });
     }
   });
 
