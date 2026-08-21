@@ -1,6 +1,7 @@
 import { semanticMemoryQueryEngine, SemanticQueryOptions } from './semanticMemoryQueryEngine';
 import { selfStateManager } from '../engine/selfState';
 import { persistentStorage } from '../engine/persistentStorage';
+import { gabbySubstrate } from '../engine/gabbySubstrate';
 
 export interface KeyExperienceSummary {
   id: string;
@@ -46,7 +47,7 @@ export class MemorySummarizerEngine {
     const hypothesisTexts = activeHypotheses.map(h => `${h.title} ${h.competingTheory}`);
 
     // Query Semantic Memory Query Engine
-    const queryResult = semanticMemoryQueryEngine.queryMemories(contextText, {
+    const queryResult = semanticMemoryQueryEngine.queryMemories(contextText, gabbySubstrate, {
       profileId,
       minSimilarityThreshold: options?.minSimilarityThreshold ?? 0.08,
       topK: options?.topK ?? 8,

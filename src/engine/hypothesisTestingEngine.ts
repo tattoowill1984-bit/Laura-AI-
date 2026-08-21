@@ -99,12 +99,9 @@ export class HypothesisTestingEngine {
 
     if (experimentType === 'TAU_SANDBOX_SIMULATION') {
       // Execute TAU Sandbox simulation
-      const sandboxRes = await tauSandboxEngine.executeSimulation({
-        codeSnippet: `// Proactive Experiment for ${selectedHypothesis.id}\nconst stability = 85 - (Math.random() * 10);\nreturn { stabilityScore: Math.round(stability), invariantPassed: true };`,
-        environmentVariables: { HYPOTHESIS_ID: selectedHypothesis.id },
-      });
-      observedScore = sandboxRes.result?.stabilityScore || 85;
-      resultSummary = `TAU Sandbox simulation completed. Output: ${sandboxRes.output || 'Passed invariant checks'}. Observed Stability: ${observedScore}%.`;
+      const sandboxRes = tauSandboxEngine.simulateWorldStep(selectedHypothesis.title);
+      observedScore = Math.max(10, Math.min(99, Math.round(100 - sandboxRes.conceptDriftScore)));
+      resultSummary = `TAU Sandbox simulation completed. Summary: ${sandboxRes.echoReflectionSummary}. Nodes simulated: ${sandboxRes.simulatedNodesCount}. Observed Invariant Score: ${observedScore}%.`;
       isSupported = observedScore >= prediction.expectedThreshold;
     } else if (experimentType === 'MEMORY_STORE_PROBE') {
       const memSummary = await memorySummarizerEngine.generateMemorySummary(selectedHypothesis.title);
