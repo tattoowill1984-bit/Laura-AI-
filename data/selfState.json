@@ -3,7 +3,7 @@
   "energy": 95,
   "posture": "NORMAL",
   "tier": "TIER_3_MACHINE_SELF_EXPANSION",
-  "lastUpdated": "2026-08-20T13:50:41.657Z",
+  "lastUpdated": "2026-08-22T16:02:26.687Z",
   "active_capabilities": [
     {
       "id": "CAMERA_STREAM",
@@ -11,7 +11,7 @@
       "category": "SENSOR_STREAM",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "Active visual perception under NORMAL posture.",
       "requiredPosture": [
         "NORMAL",
@@ -27,7 +27,7 @@
       "category": "SENSOR_STREAM",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "Active speech/vocal feature perception.",
       "requiredPosture": [
         "NORMAL",
@@ -43,7 +43,7 @@
       "category": "TOOL",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "Fresh knowledge retrieval enabled under NORMAL/DUCK posture.",
       "requiredPosture": [
         "NORMAL",
@@ -58,7 +58,7 @@
       "category": "STORAGE_MUTATION",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "MemGate derivation verification required for long-term writes.",
       "requiredPosture": [
         "NORMAL",
@@ -73,7 +73,7 @@
       "category": "INTER_AI",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "IBM constitutional identity token bound consultation.",
       "requiredPosture": [
         "NORMAL"
@@ -87,7 +87,7 @@
       "category": "TOOL",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "TAU sandbox simulation and reasoning engine active.",
       "requiredPosture": [
         "NORMAL",
@@ -102,7 +102,7 @@
       "category": "STORAGE_MUTATION",
       "status": "GRANTED",
       "grantedBy": "SECURITY_PROTOCOL_BASELINE",
-      "lastUpdated": "2026-08-20T13:49:26.666Z",
+      "lastUpdated": "2026-08-22T16:02:26.687Z",
       "reason": "Merkle lineage commit active.",
       "requiredPosture": [
         "NORMAL",
@@ -114,6 +114,150 @@
     }
   ],
   "active_hypotheses": [
+    {
+      "id": "HYP_NOVELTY_1787412714227_1",
+      "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",
+      "competingTheory": "Theory A: Incoming observation represents an authentic domain expansion requiring new conceptual nodes in World Model.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if subsequent 3 turns align within ±0.8σ of baseline historical distribution.",
+      "plausibilityScore": 0.95,
+      "timestamp": "2026-08-22T15:31:54.227Z",
+      "status": "PROPOSED",
+      "sourceObservationHash": "a4804d6cc6e6"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412714227_2",
+      "title": "Hypothesis: Transient Peripheral Anomaly",
+      "competingTheory": "Theory B: Observation is a transient peripheral outlier or uncalibrated sensor noise.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if observation attributes are independently corroborated by secondary sensor stream.",
+      "plausibilityScore": 0.29,
+      "timestamp": "2026-08-22T15:31:54.227Z",
+      "status": "UNDER_CRITIQUE",
+      "sourceObservationHash": "a4804d6cc6e6"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412632597_1",
+      "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",
+      "competingTheory": "Theory A: Incoming observation represents an authentic domain expansion requiring new conceptual nodes in World Model.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if subsequent 3 turns align within ±0.8σ of baseline historical distribution.",
+      "plausibilityScore": 0.95,
+      "timestamp": "2026-08-22T15:30:32.597Z",
+      "status": "PROPOSED",
+      "sourceObservationHash": "f8b192ba534a"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412632597_2",
+      "title": "Hypothesis: Transient Peripheral Anomaly",
+      "competingTheory": "Theory B: Observation is a transient peripheral outlier or uncalibrated sensor noise.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if observation attributes are independently corroborated by secondary sensor stream.",
+      "plausibilityScore": 0.29,
+      "timestamp": "2026-08-22T15:30:32.597Z",
+      "status": "UNDER_CRITIQUE",
+      "sourceObservationHash": "f8b192ba534a"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412525108_1",
+      "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",
+      "competingTheory": "Theory A: Incoming observation represents an authentic domain expansion requiring new conceptual nodes in World Model.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if subsequent 3 turns align within ±0.8σ of baseline historical distribution.",
+      "plausibilityScore": 0.95,
+      "timestamp": "2026-08-22T15:28:45.108Z",
+      "status": "PROPOSED",
+      "sourceObservationHash": "9c935499550b"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412525108_2",
+      "title": "Hypothesis: Transient Peripheral Anomaly",
+      "competingTheory": "Theory B: Observation is a transient peripheral outlier or uncalibrated sensor noise.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if observation attributes are independently corroborated by secondary sensor stream.",
+      "plausibilityScore": 0.29,
+      "timestamp": "2026-08-22T15:28:45.108Z",
+      "status": "UNDER_CRITIQUE",
+      "sourceObservationHash": "9c935499550b"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412451526_1",
+      "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",
+      "competingTheory": "Theory A: Incoming observation represents an authentic domain expansion requiring new conceptual nodes in World Model.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if subsequent 3 turns align within ±0.8σ of baseline historical distribution.",
+      "plausibilityScore": 0.95,
+      "timestamp": "2026-08-22T15:27:31.526Z",
+      "status": "PROPOSED",
+      "sourceObservationHash": "09f03c5e2234"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412451526_2",
+      "title": "Hypothesis: Transient Peripheral Anomaly",
+      "competingTheory": "Theory B: Observation is a transient peripheral outlier or uncalibrated sensor noise.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if observation attributes are independently corroborated by secondary sensor stream.",
+      "plausibilityScore": 0.29,
+      "timestamp": "2026-08-22T15:27:31.526Z",
+      "status": "UNDER_CRITIQUE",
+      "sourceObservationHash": "09f03c5e2234"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412355267_1",
+      "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",
+      "competingTheory": "Theory A: Incoming observation represents an authentic domain expansion requiring new conceptual nodes in World Model.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if subsequent 3 turns align within ±0.8σ of baseline historical distribution.",
+      "plausibilityScore": 0.95,
+      "timestamp": "2026-08-22T15:25:55.267Z",
+      "status": "PROPOSED",
+      "sourceObservationHash": "4d7153c91200"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412355267_2",
+      "title": "Hypothesis: Transient Peripheral Anomaly",
+      "competingTheory": "Theory B: Observation is a transient peripheral outlier or uncalibrated sensor noise.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if observation attributes are independently corroborated by secondary sensor stream.",
+      "plausibilityScore": 0.29,
+      "timestamp": "2026-08-22T15:25:55.267Z",
+      "status": "UNDER_CRITIQUE",
+      "sourceObservationHash": "4d7153c91200"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412245140_1",
+      "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",
+      "competingTheory": "Theory A: Incoming observation represents an authentic domain expansion requiring new conceptual nodes in World Model.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if subsequent 3 turns align within ±0.8σ of baseline historical distribution.",
+      "plausibilityScore": 0.95,
+      "timestamp": "2026-08-22T15:24:05.140Z",
+      "status": "PROPOSED",
+      "sourceObservationHash": "c07dc56ff171"
+    },
+    {
+      "id": "HYP_NOVELTY_1787412245140_2",
+      "title": "Hypothesis: Transient Peripheral Anomaly",
+      "competingTheory": "Theory B: Observation is a transient peripheral outlier or uncalibrated sensor noise.",
+      "noveltyScore": 100,
+      "statisticalDeviationZScore": 6,
+      "falsificationCondition": "Falsify if observation attributes are independently corroborated by secondary sensor stream.",
+      "plausibilityScore": 0.29,
+      "timestamp": "2026-08-22T15:24:05.140Z",
+      "status": "UNDER_CRITIQUE",
+      "sourceObservationHash": "c07dc56ff171"
+    },
     {
       "id": "HYP_NOVELTY_1787233764127_1",
       "title": "Hypothesis: Structural Domain Shift (+6σ deviation)",

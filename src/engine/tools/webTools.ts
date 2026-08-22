@@ -108,4 +108,39 @@ export const webToolDeclarations = [
       required: ['url'],
     },
   },
+  {
+    name: 'setReminder',
+    description: 'Sets a reminder or scheduled task for the user with title, due timestamp, priority, and category.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        title: { type: 'STRING', description: 'The reminder title or task description.' },
+        dueTimestamp: { type: 'STRING', description: 'ISO-8601 target time or relative offset e.g. "in 30 minutes".' },
+        formattedDue: { type: 'STRING', description: 'Human readable due date and time e.g. "Tomorrow at 3:00 PM".' },
+        priority: { type: 'STRING', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], description: 'Priority level of the reminder.' },
+        category: { type: 'STRING', enum: ['TASK', 'MEETING', 'HEALTH', 'PERSONAL', 'GENERAL', 'LEARNING'], description: 'Category of the reminder.' },
+        notes: { type: 'STRING', description: 'Optional extra notes or details.' },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'getReminders',
+    description: 'Retrieves all active reminders and scheduled tasks.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {},
+    },
+  },
+  {
+    name: 'calculateExpression',
+    description: 'Calculates a mathematical or arithmetic expression safely.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        expression: { type: 'STRING', description: 'Mathematical expression e.g. "25 * (100 + 45)"' },
+      },
+      required: ['expression'],
+    },
+  },
 ];

@@ -6,11 +6,13 @@
 import { externalRetrievalGateway } from '../engine/externalRetrievalGateway';
 import { requiresConfirmation } from './confirmation';
 import { extractionEngine } from './extractionEngine';
+import { persistentStorage } from '../engine/persistentStorage';
+import { reminderEngine } from '../engine/reminderEngine';
 
 export interface ToolDefinition {
   name: string;
   description: string;
-  category: 'SEARCH' | 'MEMORY' | 'SYSTEM' | 'MUTATION' | 'EXTRACTION';
+  category: 'SEARCH' | 'MEMORY' | 'SYSTEM' | 'MUTATION' | 'EXTRACTION' | 'ASSISTANT';
   execute: (args: any) => Promise<any>;
 }
 
@@ -47,7 +49,78 @@ export class ToolRegistry {
       },
     });
 
-    // 3. Raw PDB Molecular Extraction Tool (Offline Data Ingestion)
+    // 3. Set Reminder Tool
+    this.registerTool({
+      name: 'set_reminder',
+      description: 'Schedules a reminder or task for the user with title, due timestamp, priority, and category.',
+      category: 'ASSISTANT',
+      execute: async (args: {
+        title: string;
+        dueTimestamp?: string;
+        formattedDue?: string;
+        priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        category?: 'TASK' | 'MEETING' | 'HEALTH' | 'PERSONAL' | 'GENERAL' | 'LEARNING';
+        notes?: string;
+        profileId?: string;
+      }) => {
+        const reminder = reminderEngine.createReminder(args);
+        return {
+          success: true,
+          reminder,
+          message: `Reminder successfully created: "${reminder.title}" due ${reminder.formattedDue}.`,
+        };
+      },
+    });
+
+    // 4. Get Reminders Tool
+    this.registerTool({
+      name: 'get_reminders',
+      description: 'Retrieves all active or upcoming reminders and tasks for the user.',
+      category: 'ASSISTANT',
+      execute: async (args: { profileId?: string }) => {
+        const reminders = persistentStorage.getReminders(args.profileId || 'will-owner');
+        return {
+          success: true,
+          count: reminders.length,
+          reminders,
+        };
+      },
+    });
+
+    // 5. Complete Reminder Tool
+    this.registerTool({
+      name: 'complete_reminder',
+      description: 'Marks a specified reminder or task as completed.',
+      category: 'ASSISTANT',
+      execute: async (args: { id: string }) => {
+        const updated = persistentStorage.updateReminder(args.id, {
+          completed: true,
+          completedAt: new Date().toISOString(),
+        });
+        return {
+          success: !!updated,
+          reminder: updated,
+          message: updated ? `Marked "${updated.title}" as completed.` : 'Reminder not found.',
+        };
+      },
+    });
+
+    // 6. Calculate Expression Tool
+    this.registerTool({
+      name: 'calculate_expression',
+      description: 'Evaluates mathematical, statistical, or arithmetic expressions safely.',
+      category: 'ASSISTANT',
+      execute: async (args: { expression: string }) => {
+        const result = reminderEngine.safeCalculate(args.expression);
+        return {
+          success: result !== null,
+          expression: args.expression,
+          result,
+        };
+      },
+    });
+
+    // 7. Raw PDB Molecular Extraction Tool (Offline Data Ingestion)
     this.registerTool({
       name: 'extract_pdb_coordinates',
       description: 'Parses raw PDB molecular structure files into coordinate matrices & runs manifold stability check.',
@@ -57,7 +130,7 @@ export class ToolRegistry {
       },
     });
 
-    // 4. Raw CSV Matrix Extraction Tool (Offline Data Ingestion)
+    // 8. Raw CSV Matrix Extraction Tool (Offline Data Ingestion)
     this.registerTool({
       name: 'extract_csv_matrix',
       description: 'Parses raw CSV numerical datasets into structured matrices & calculates dimensional consistency.',

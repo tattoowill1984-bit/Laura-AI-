@@ -56,6 +56,7 @@ import { extractionEngine } from './src/tools/extractionEngine';
 import { executeWebSearch, fetchWebPage, webToolDeclarations } from './src/engine/tools/webTools';
 import { personalityCoreEngine } from './src/engine/personalityCore';
 import { AutonomousCognitiveEngine } from './src/engine/autonomousCognitiveEngine';
+import { reminderEngine } from './src/engine/reminderEngine';
 
 heartbeatLoop.start();
 
@@ -117,7 +118,24 @@ function generateLocalDeterministicResponse(
 
   let coreAnalysis = "";
 
-  if (externalObs && externalObs.results && externalObs.results.length > 0) {
+  // Check natural command parser
+  const parsedCmd = reminderEngine.parseNaturalCommand(message);
+
+  if (parsedCmd.isCommand && parsedCmd.commandType === 'SET_REMINDER' && parsedCmd.extractedParams?.title) {
+    const details = parsedCmd.extractedParams;
+    coreAnalysis = `Consider it done! I've scheduled your reminder:\n\n• **Title:** ${details.title}\n• **Scheduled For:** ${details.formattedDue}\n• **Priority:** ${details.priority}\n• **Category:** ${details.category}\n\nI've anchored this task in persistent memory and our autonomous cognitive loop will notify you when it's due.`;
+  } else if (parsedCmd.isCommand && parsedCmd.commandType === 'GET_REMINDERS') {
+    const reminders = persistentStorage.getReminders('will-owner');
+    const active = reminders.filter(r => !r.completed);
+    if (active.length === 0) {
+      coreAnalysis = `You have no pending reminders on your active radar. Your schedule is currently clear!`;
+    } else {
+      const listStr = active.map((r, i) => `${i + 1}. **${r.title}** (${r.priority} Priority) — Due: ${r.formattedDue}`).join('\n');
+      coreAnalysis = `Here are your currently active reminders (${active.length} total):\n\n${listStr}\n\nLet me know if you want to complete, snooze, or add any new tasks.`;
+    }
+  } else if (parsedCmd.isCommand && parsedCmd.commandType === 'CALCULATE' && parsedCmd.extractedParams?.calculationResult !== undefined) {
+    coreAnalysis = `The computed result for \`${parsedCmd.extractedParams.expression}\` is **${parsedCmd.extractedParams.calculationResult}**. Mathematical invariants confirmed.`;
+  } else if (externalObs && externalObs.results && externalObs.results.length > 0) {
     const formattedHits = externalObs.results
       .map((r, i) => `${i + 1}. **${r.title}**\n   Source: ${r.source} | Retrieved: ${r.fetchedAt}\n   Snippet: ${r.snippet}\n   URL: ${r.url}`)
       .join('\n\n');
@@ -1060,7 +1078,101 @@ async function startServer() {
     }
   });
 
-  app.post('/api/chat', async (req, res) => {
+  // --- REMINDERS & TASK MANAGEMENT ROUTES ---
+  app.get('/api/reminders', (req, res) => {
+    try {
+      const profileId = (req.query.profileId as string) || 'will-owner';
+      const reminders = persistentStorage.getReminders(profileId);
+      res.json({ success: true, reminders, count: reminders.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching reminders' });
+    }
+  });
+
+  app.post('/api/reminders', (req, res) => {
+    try {
+      const { title, notes, dueTimestamp, formattedDue, priority, category, profileId, source } = req.body || {};
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ error: 'Title is required for reminder.' });
+      }
+      const reminder = reminderEngine.createReminder({
+        title,
+        notes,
+        dueTimestamp,
+        formattedDue,
+        priority,
+        category,
+        profileId: profileId || 'will-owner',
+        source: source || 'MANUAL_ENTRY',
+      });
+      res.json({ success: true, reminder });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed creating reminder' });
+    }
+  });
+
+  app.put('/api/reminders/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body || {};
+      const updated = persistentStorage.updateReminder(id, updates);
+      if (!updated) {
+        return res.status(404).json({ error: 'Reminder not found.' });
+      }
+      res.json({ success: true, reminder: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed updating reminder' });
+    }
+  });
+
+  app.delete('/api/reminders/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = persistentStorage.deleteReminder(id);
+      res.json({ success: deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed deleting reminder' });
+    }
+  });
+
+  app.get('/api/reminders/due', (req, res) => {
+    try {
+      const profileId = (req.query.profileId as string) || 'will-owner';
+      const due = persistentStorage.getDueReminders(profileId);
+      res.json({ success: true, dueReminders: due, count: due.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching due reminders' });
+    }
+  });
+
+  app.post('/api/reminders/:id/snooze', (req, res) => {
+    try {
+      const { id } = req.params;
+      const { minutes } = req.body || {};
+      const snoozed = persistentStorage.snoozeReminder(id, typeof minutes === 'number' ? minutes : 10);
+      if (!snoozed) {
+        return res.status(404).json({ error: 'Reminder not found.' });
+      }
+      res.json({ success: true, reminder: snoozed });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed snoozing reminder' });
+    }
+  });
+
+  app.post('/api/reminders/parse', (req, res) => {
+    try {
+      const { text, profileId } = req.body || {};
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ error: 'Text command is required.' });
+      }
+      const parsed = reminderEngine.parseNaturalCommand(text, profileId || 'will-owner');
+      res.json({ success: true, parsed });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed parsing command' });
+    }
+  });
+
+  const handleChatInteraction = async (req: express.Request, res: express.Response) => {
     try {
       const { message, attachments, history, profileId: reqProfileId, modality: reqModality, visualData: reqVisualData, audioData: reqAudioData, cameraFrameBase64: rawCameraFrame } = req.body || {};
       
@@ -1623,6 +1735,25 @@ Notes: ${extraction.notes}`,
         parentIds: [],
       });
 
+      // Assistant Natural Command Processing & Task Action Execution
+      const parsedCommand = reminderEngine.parseNaturalCommand(promptText, activeProfileId);
+      let createdReminder = undefined;
+      let retrievedReminders = undefined;
+
+      if (parsedCommand.isCommand && parsedCommand.commandType === 'SET_REMINDER' && parsedCommand.extractedParams?.title) {
+        createdReminder = reminderEngine.createReminder({
+          profileId: activeProfileId,
+          title: parsedCommand.extractedParams.title,
+          dueTimestamp: parsedCommand.extractedParams.dueTimestamp,
+          formattedDue: parsedCommand.extractedParams.formattedDue,
+          priority: parsedCommand.extractedParams.priority,
+          category: parsedCommand.extractedParams.category,
+          source: 'NATURAL_LANGUAGE_CHAT',
+        });
+      } else if (parsedCommand.isCommand && parsedCommand.commandType === 'GET_REMINDERS') {
+        retrievedReminders = persistentStorage.getReminders(activeProfileId);
+      }
+
       // Record in persistent storage database
       const nowTs = new Date().toISOString();
       const userMsg = persistentStorage.addChatMessage({
@@ -1657,6 +1788,9 @@ Notes: ${extraction.notes}`,
         posture: kernel.getPosture(),
         tier: kernel.getCurrentTier(),
         memoriesCount: allMemoryFacts.length,
+        parsedCommand,
+        createdReminder,
+        retrievedReminders,
       });
     } catch (err: any) {
       console.error('[Chat API Error]', err);
@@ -1673,6 +1807,21 @@ Notes: ${extraction.notes}`,
         fallbackFabric,
         fallbackUncertainty
       );
+
+      // Check command in fallback too
+      const parsedCommand = reminderEngine.parseNaturalCommand(promptText, activeProfileId);
+      let createdReminder = undefined;
+      if (parsedCommand.isCommand && parsedCommand.commandType === 'SET_REMINDER' && parsedCommand.extractedParams?.title) {
+        createdReminder = reminderEngine.createReminder({
+          profileId: activeProfileId,
+          title: parsedCommand.extractedParams.title,
+          dueTimestamp: parsedCommand.extractedParams.dueTimestamp,
+          formattedDue: parsedCommand.extractedParams.formattedDue,
+          priority: parsedCommand.extractedParams.priority,
+          category: parsedCommand.extractedParams.category,
+          source: 'NATURAL_LANGUAGE_CHAT',
+        });
+      }
 
       const nowTs = new Date().toISOString();
       const userMsg = persistentStorage.addChatMessage({
@@ -1700,9 +1849,14 @@ Notes: ${extraction.notes}`,
         uncertainty: fallbackUncertainty,
         posture: kernel.getPosture(),
         tier: kernel.getCurrentTier(),
+        parsedCommand,
+        createdReminder,
       });
     }
-  });
+  };
+
+  app.post('/api/chat', handleChatInteraction);
+  app.post('/api/interact', handleChatInteraction);
 
   // 7.5. Gabby Substrate Full Audit Endpoint
   app.get('/api/gabby/substrate', (req, res) => {

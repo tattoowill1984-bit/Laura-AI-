@@ -15,6 +15,8 @@ import { PersonalityAndRetrievalModal } from './components/PersonalityAndRetriev
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { InterAIDialogueModal } from './components/InterAIDialogueModal';
 import { AutonomousCognitiveHubModal } from './components/AutonomousCognitiveHubModal';
+import { ReminderManagerModal } from './components/ReminderManagerModal';
+import { UnifiedSystemMatrix, UnifiedPanelTab } from './components/UnifiedSystemMatrix';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
 import {
   AutonomyTier,
@@ -88,6 +90,10 @@ export default function App() {
 
   // Modals & Modes & Profiles
   const [isCleanUserMode, setIsCleanUserMode] = useState<boolean>(true);
+  const [isWorkstationMode, setIsWorkstationMode] = useState<boolean>(true);
+  const [isUnifiedMatrixOpen, setIsUnifiedMatrixOpen] = useState<boolean>(false);
+  const [unifiedMatrixTab, setUnifiedMatrixTab] = useState<UnifiedPanelTab>('MIND');
+
   const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState<boolean>(false);
   const [isTiersModalOpen, setIsTiersModalOpen] = useState<boolean>(false);
   const [isProposalsModalOpen, setIsProposalsModalOpen] = useState<boolean>(false);
@@ -98,6 +104,7 @@ export default function App() {
   const [isDriveModalOpen, setIsDriveModalOpen] = useState<boolean>(false);
   const [isInterAIModalOpen, setIsInterAIModalOpen] = useState<boolean>(false);
   const [isAutonomousHubOpen, setIsAutonomousHubOpen] = useState<boolean>(false);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState<boolean>(false);
   const [proposalForModal, setProposalForModal] = useState<Proposal | null>(null);
 
   const handleFeedToLauraMemory = async (title: string, content: string, sourceUrl?: string) => {
@@ -603,9 +610,18 @@ export default function App() {
         currentTier={currentTier}
         healthMetrics={healthMetrics}
         pendingProposalsCount={pendingCount}
-        onOpenTiersModal={() => setIsTiersModalOpen(true)}
-        onOpenProposalsModal={() => setIsProposalsModalOpen(true)}
-        onOpenLayersModal={() => setIsLayersModalOpen(true)}
+        onOpenTiersModal={() => {
+          setUnifiedMatrixTab('TOOLS');
+          setIsUnifiedMatrixOpen(true);
+        }}
+        onOpenProposalsModal={() => {
+          setUnifiedMatrixTab('TOOLS');
+          setIsUnifiedMatrixOpen(true);
+        }}
+        onOpenLayersModal={() => {
+          setUnifiedMatrixTab('INVARIANTS');
+          setIsUnifiedMatrixOpen(true);
+        }}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isCleanUserMode={isCleanUserMode}
@@ -615,9 +631,28 @@ export default function App() {
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
         onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
-        onOpenDriveModal={() => setIsDriveModalOpen(true)}
-        onOpenInterAIModal={() => setIsInterAIModalOpen(true)}
-        onOpenAutonomousHubModal={() => setIsAutonomousHubOpen(true)}
+        onOpenDriveModal={() => {
+          setUnifiedMatrixTab('MEMORY');
+          setIsUnifiedMatrixOpen(true);
+        }}
+        onOpenInterAIModal={() => {
+          setUnifiedMatrixTab('TOOLS');
+          setIsUnifiedMatrixOpen(true);
+        }}
+        onOpenAutonomousHubModal={() => {
+          setUnifiedMatrixTab('MIND');
+          setIsUnifiedMatrixOpen(true);
+        }}
+        onOpenReminderModal={() => {
+          setUnifiedMatrixTab('TASKS');
+          setIsUnifiedMatrixOpen(true);
+        }}
+        onOpenUnifiedMatrix={(tab) => {
+          if (tab) setUnifiedMatrixTab(tab);
+          setIsUnifiedMatrixOpen(true);
+        }}
+        isWorkstationMode={isWorkstationMode}
+        onToggleWorkstationMode={() => setIsWorkstationMode(!isWorkstationMode)}
       />
 
       {/* Posture Bar Control Banner (Shown only in Engineering View) */}
@@ -633,23 +668,94 @@ export default function App() {
       )}
 
       {/* Main App Content View Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-4 md:p-6">
         {isCleanUserMode ? (
-          <AnamnesisChatInterface
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isLoading={isChatLoading}
-            onOpenProposalModal={(p) => {
-              setProposalForModal(p);
-              setIsProposalsModalOpen(true);
-            }}
-            posture={posture}
-            activeProfile={activeProfile}
-            onOpenProfileModal={() => setIsProfileModalOpen(true)}
-            onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
-            voiceSettings={voiceSettings}
-            onUpdateVoiceSettings={handleUpdateVoiceSettings}
-          />
+          <div className="h-full">
+            {isWorkstationMode ? (
+              /* Unified Workstation Dual-Pane Layout */
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-80px)] items-stretch">
+                <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full overflow-hidden">
+                  <AnamnesisChatInterface
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isLoading={isChatLoading}
+                    onOpenProposalModal={(p) => {
+                      setProposalForModal(p);
+                      setUnifiedMatrixTab('TOOLS');
+                      setIsUnifiedMatrixOpen(true);
+                    }}
+                    posture={posture}
+                    activeProfile={activeProfile}
+                    onOpenProfileModal={() => setIsProfileModalOpen(true)}
+                    onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
+                    onOpenAutonomousHubModal={() => {
+                      setUnifiedMatrixTab('MIND');
+                      setIsUnifiedMatrixOpen(true);
+                    }}
+                    onOpenReminderModal={() => {
+                      setUnifiedMatrixTab('TASKS');
+                      setIsUnifiedMatrixOpen(true);
+                    }}
+                    onOpenUnifiedMatrix={(tab) => {
+                      if (tab) setUnifiedMatrixTab(tab as UnifiedPanelTab);
+                      setIsUnifiedMatrixOpen(true);
+                    }}
+                    voiceSettings={voiceSettings}
+                    onUpdateVoiceSettings={handleUpdateVoiceSettings}
+                  />
+                </div>
+
+                <div className="hidden lg:block lg:col-span-5 xl:col-span-4 h-full overflow-hidden">
+                  <UnifiedSystemMatrix
+                    isOpen={true}
+                    posture={posture}
+                    currentTier={currentTier}
+                    healthMetrics={healthMetrics}
+                    activeProfile={activeProfile}
+                    proposals={proposals}
+                    onExecuteProposal={handleExecuteProposal}
+                    onSetPosture={handleSetPosture}
+                    onSelectTier={handleSelectTier}
+                    onInsertIntoChat={(text) => handleSendMessage(text, [])}
+                    activeTab={unifiedMatrixTab}
+                    onTabChange={setUnifiedMatrixTab}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Single-Pane Focused Chat */
+              <div className="max-w-4xl mx-auto h-[calc(100vh-80px)]">
+                <AnamnesisChatInterface
+                  messages={messages}
+                  onSendMessage={handleSendMessage}
+                  isLoading={isChatLoading}
+                  onOpenProposalModal={(p) => {
+                    setProposalForModal(p);
+                    setUnifiedMatrixTab('TOOLS');
+                    setIsUnifiedMatrixOpen(true);
+                  }}
+                  posture={posture}
+                  activeProfile={activeProfile}
+                  onOpenProfileModal={() => setIsProfileModalOpen(true)}
+                  onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
+                  onOpenAutonomousHubModal={() => {
+                    setUnifiedMatrixTab('MIND');
+                    setIsUnifiedMatrixOpen(true);
+                  }}
+                  onOpenReminderModal={() => {
+                    setUnifiedMatrixTab('TASKS');
+                    setIsUnifiedMatrixOpen(true);
+                  }}
+                  onOpenUnifiedMatrix={(tab) => {
+                    if (tab) setUnifiedMatrixTab(tab as UnifiedPanelTab);
+                    setIsUnifiedMatrixOpen(true);
+                  }}
+                  voiceSettings={voiceSettings}
+                  onUpdateVoiceSettings={handleUpdateVoiceSettings}
+                />
+              </div>
+            )}
+          </div>
         ) : (
           <>
             {activeTab === 'vnext' && (
@@ -677,11 +783,25 @@ export default function App() {
                 isLoading={isChatLoading}
                 onOpenProposalModal={(p) => {
                   setProposalForModal(p);
-                  setIsProposalsModalOpen(true);
+                  setUnifiedMatrixTab('TOOLS');
+                  setIsUnifiedMatrixOpen(true);
                 }}
                 posture={posture}
                 activeProfile={activeProfile}
                 onOpenProfileModal={() => setIsProfileModalOpen(true)}
+                onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
+                onOpenAutonomousHubModal={() => {
+                  setUnifiedMatrixTab('MIND');
+                  setIsUnifiedMatrixOpen(true);
+                }}
+                onOpenReminderModal={() => {
+                  setUnifiedMatrixTab('TASKS');
+                  setIsUnifiedMatrixOpen(true);
+                }}
+                onOpenUnifiedMatrix={(tab) => {
+                  if (tab) setUnifiedMatrixTab(tab as UnifiedPanelTab);
+                  setIsUnifiedMatrixOpen(true);
+                }}
                 voiceSettings={voiceSettings}
                 onUpdateVoiceSettings={handleUpdateVoiceSettings}
               />
@@ -707,7 +827,33 @@ export default function App() {
         )}
       </main>
 
-      {/* Modals & Drawers */}
+      {/* Floating / Mobile Unified System Matrix Drawer */}
+      {isUnifiedMatrixOpen && (!isWorkstationMode || window.innerWidth < 1024) && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+          <div className="max-w-2xl w-full h-[85vh] max-h-[750px] relative">
+            <UnifiedSystemMatrix
+              isOpen={true}
+              onClose={() => setIsUnifiedMatrixOpen(false)}
+              posture={posture}
+              currentTier={currentTier}
+              healthMetrics={healthMetrics}
+              activeProfile={activeProfile}
+              proposals={proposals}
+              onExecuteProposal={handleExecuteProposal}
+              onSetPosture={handleSetPosture}
+              onSelectTier={handleSelectTier}
+              onInsertIntoChat={(text) => {
+                handleSendMessage(text, []);
+                setIsUnifiedMatrixOpen(false);
+              }}
+              activeTab={unifiedMatrixTab}
+              onTabChange={setUnifiedMatrixTab}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Deep-Dive Modals & Specialized Overlays */}
       <ProfileAndMemoryModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
@@ -767,6 +913,12 @@ export default function App() {
         posture={posture}
         currentTier={currentTier}
         onInsertInsightIntoChat={(text) => handleSendMessage(text, [])}
+      />
+
+      <ReminderManagerModal
+        isOpen={isReminderModalOpen}
+        onClose={() => setIsReminderModalOpen(false)}
+        profileId={activeProfile?.id || 'will-owner'}
       />
     </div>
   );

@@ -34,8 +34,11 @@ import {
   Eye,
   Copy,
   Check,
+  Bell,
+  AlarmClock,
+  Calendar,
 } from 'lucide-react';
-import { ChatMessage, FileAttachment, Proposal } from '../types';
+import { ChatMessage, FileAttachment, Proposal, ReminderItem } from '../types';
 import { sensorStreamer } from '../sensors/SensorStreamer';
 import { continuousRuntime } from '../engine/vnext/ContinuousCognitiveRuntime';
 import { SpatialBoundingOverlay } from './SpatialBoundingOverlay';
@@ -52,6 +55,8 @@ interface AnamnesisChatInterfaceProps {
   onOpenProfileModal?: () => void;
   onOpenPersonalityModal?: () => void;
   onOpenAutonomousHubModal?: () => void;
+  onOpenReminderModal?: () => void;
+  onOpenUnifiedMatrix?: (tab?: string) => void;
   voiceSettings?: {
     autoReadback: boolean;
     selectedVoiceName: string;
@@ -76,6 +81,8 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   onOpenProfileModal,
   onOpenPersonalityModal,
   onOpenAutonomousHubModal,
+  onOpenReminderModal,
+  onOpenUnifiedMatrix,
   voiceSettings = {
     autoReadback: false,
     selectedVoiceName: '',
@@ -87,6 +94,8 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   const [isInspectorToolsOpen, setIsInspectorToolsOpen] = useState<boolean>(false);
   const [latestProactiveInsight, setLatestProactiveInsight] = useState<any | null>(null);
   const [dismissedInsightIds, setDismissedInsightIds] = useState<string[]>([]);
+  const [dueReminders, setDueReminders] = useState<ReminderItem[]>([]);
+  const [dismissedReminderIds, setDismissedReminderIds] = useState<string[]>([]);
   const [inputText, setInputText] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
   const [expandedEnvelopes, setExpandedEnvelopes] = useState<Record<string, boolean>>({});
@@ -111,6 +120,54 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
     }, 10000); // Ticks every 10 seconds to keep "just now", "1m ago", etc. active and precise
     return () => clearInterval(interval);
   }, []);
+
+  // Poll for due reminders
+  useEffect(() => {
+    const fetchDueReminders = async () => {
+      try {
+        const profId = activeProfile?.id || 'will-owner';
+        const res = await fetch(`/api/reminders/due?profileId=${encodeURIComponent(profId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.dueReminders)) {
+            setDueReminders(data.dueReminders);
+          }
+        }
+      } catch (err) {
+        // Silent error
+      }
+    };
+
+    fetchDueReminders();
+    const interval = setInterval(fetchDueReminders, 15000);
+    return () => clearInterval(interval);
+  }, [activeProfile]);
+
+  const handleCompleteDueReminder = async (id: string) => {
+    try {
+      await fetch(`/api/reminders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: true, completedAt: new Date().toISOString() }),
+      });
+      setDueReminders(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Failed completing due reminder:', err);
+    }
+  };
+
+  const handleSnoozeDueReminder = async (id: string, minutes: number) => {
+    try {
+      await fetch(`/api/reminders/${id}/snooze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes }),
+      });
+      setDueReminders(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Failed snoozing due reminder:', err);
+    }
+  };
 
   const toggleTimestampMode = () => {
     setTimestampMode((prev) => {
@@ -1085,6 +1142,84 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
             </div>
           </div>
         )}
+
+        {/* Due Reminders Proactive Alert Banner */}
+        {dueReminders.length > 0 && (
+          <div className="space-y-2">
+            {dueReminders
+              .filter(r => !dismissedReminderIds.includes(r.id))
+              .map(reminder => (
+                <div
+                  key={reminder.id}
+                  className="p-3.5 bg-gradient-to-r from-rose-950/80 via-purple-950/80 to-slate-950/90 border border-rose-500/50 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xl animate-bounce-short"
+                >
+                  <div className="flex items-start gap-3 flex-1 min-w-[260px]">
+                    <div className="p-2 rounded-xl bg-rose-900/60 border border-rose-500/50 text-rose-300 flex-shrink-0 mt-0.5">
+                      <AlarmClock className="w-4 h-4 text-rose-300 animate-pulse" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-rose-200 flex items-center gap-1.5">
+                          Reminder Due Now
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-rose-950 border border-rose-500/40 text-rose-300 uppercase">
+                          {reminder.priority} Priority
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-slate-900 border border-slate-700 text-slate-300">
+                          {reminder.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-100 font-medium leading-snug">
+                        {reminder.title}
+                      </p>
+                      {reminder.notes && (
+                        <p className="text-[11px] text-slate-300">{reminder.notes}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCompleteDueReminder(reminder.id)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Done</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSnoozeDueReminder(reminder.id, 10)}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono transition-all cursor-pointer"
+                      title="Snooze 10 minutes"
+                    >
+                      +10m Snooze
+                    </button>
+
+                    {onOpenReminderModal && (
+                      <button
+                        type="button"
+                        onClick={onOpenReminderModal}
+                        className="px-2.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900 border border-purple-700/50 text-purple-300 text-xs font-mono transition-all cursor-pointer"
+                      >
+                        All Tasks
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setDismissedReminderIds(prev => [...prev, reminder.id])}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-all cursor-pointer"
+                      title="Dismiss alert"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
         {/* Phase 2 Live Sensory Feed HUD (Eyes & Ears Auto-Active) */}
         {(isAutoSeeActive || isAutoHearActive) && (
           <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
@@ -1684,10 +1819,36 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                 <Paperclip className="w-4 h-4 text-cyan-400" />
                 <span>Add something</span>
               </button>
+
+              {/* ⏰ Reminders & Tasks Hub */}
+              {(onOpenUnifiedMatrix || onOpenReminderModal) && (
+                <button
+                  type="button"
+                  onClick={() => onOpenUnifiedMatrix ? onOpenUnifiedMatrix('TASKS') : onOpenReminderModal?.()}
+                  className="px-3.5 py-2 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 border border-purple-500/40 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Open Tasks & Reminders in Unified Matrix"
+                >
+                  <AlarmClock className="w-4 h-4 text-purple-400" />
+                  <span>Tasks</span>
+                </button>
+              )}
+
+              {/* 🧠 Unified System Matrix Hub */}
+              {onOpenUnifiedMatrix && (
+                <button
+                  type="button"
+                  onClick={() => onOpenUnifiedMatrix('MIND')}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700/80 text-slate-300 border border-slate-700/70 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Open Unified Cognitive System Matrix"
+                >
+                  <Brain className="w-4 h-4 text-cyan-400" />
+                  <span className="hidden sm:inline">System Matrix</span>
+                </button>
+              )}
             </div>
 
             <div className="hidden sm:flex items-center text-[11px] text-slate-500 font-mono">
-              <span>Laura AI Engine</span>
+              <span>Laura Unified System</span>
             </div>
           </div>
         </div>

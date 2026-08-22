@@ -479,3 +479,41 @@ export interface AutonomousEngineState {
   epistemicGoals: EpistemicGoal[];
 }
 
+export interface ReminderItem {
+  id: string;
+  profileId: string;
+  title: string;
+  notes?: string;
+  dueTimestamp: string; // ISO string
+  formattedDue: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  category: 'TASK' | 'MEETING' | 'HEALTH' | 'PERSONAL' | 'GENERAL' | 'LEARNING';
+  completed: boolean;
+  completedAt?: string;
+  snoozedUntil?: string;
+  recurring?: 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  source: 'NATURAL_LANGUAGE_CHAT' | 'MANUAL_ENTRY' | 'AUTONOMOUS_PROACTIVE';
+  createdAt: string;
+  updatedAt: string;
+  acknowledged?: boolean;
+}
+
+export interface NaturalCommandParseResult {
+  isCommand: boolean;
+  commandType: 'SET_REMINDER' | 'GET_REMINDERS' | 'COMPLETE_REMINDER' | 'DELETE_REMINDER' | 'SEARCH_WEB' | 'ANSWER_QUESTION' | 'CALCULATE' | 'UNKNOWN';
+  confidence: number;
+  extractedParams: {
+    title?: string;
+    dueTimestamp?: string;
+    formattedDue?: string;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    category?: 'TASK' | 'MEETING' | 'HEALTH' | 'PERSONAL' | 'GENERAL' | 'LEARNING';
+    query?: string;
+    reminderId?: string;
+    expression?: string;
+    calculationResult?: string;
+  };
+  suggestedResponse?: string;
+}
+
+

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { ReminderItem } from '../types';
 
 export interface UserProfile {
   id: string;
@@ -52,6 +53,7 @@ interface DatabaseSchema {
   profiles: UserProfile[];
   memories: LongTermMemoryItem[];
   chatHistories: StoredChatMessage[];
+  reminders?: ReminderItem[];
   commitReceipts?: any[];
   burnLogEntries?: any[];
   version: number;
@@ -76,6 +78,37 @@ const DEFAULT_WILL_PROFILE: UserProfile = {
     subtleOperatorView: false,
   },
 };
+
+const DEFAULT_INITIAL_REMINDERS: ReminderItem[] = [
+  {
+    id: 'rem-telemetry-check',
+    profileId: 'will-owner',
+    title: 'Review System Epistemic Telemetry & Merkle Roots',
+    notes: 'Verify invariant integrity across all defensive postures.',
+    dueTimestamp: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(),
+    formattedDue: 'Today at 2 hours from now',
+    priority: 'HIGH',
+    category: 'TASK',
+    completed: false,
+    source: 'AUTONOMOUS_PROACTIVE',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'rem-research-brief',
+    profileId: 'will-owner',
+    title: 'Synthesize Autonomous Cognitive Multi-Agent Findings',
+    notes: 'Check cognitive memory dream cycles and active goal stack.',
+    dueTimestamp: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+    formattedDue: 'Tomorrow at this time',
+    priority: 'MEDIUM',
+    category: 'LEARNING',
+    completed: false,
+    source: 'NATURAL_LANGUAGE_CHAT',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 const DEFAULT_INITIAL_MEMORIES: LongTermMemoryItem[] = [
   {
@@ -121,11 +154,15 @@ export class PersistentStorage {
   }
 
   private loadDatabase(): DatabaseSchema {
+    let parsed: any = null;
     try {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
+        parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.profiles)) {
+          if (!Array.isArray(parsed.reminders)) {
+            parsed.reminders = DEFAULT_INITIAL_REMINDERS;
+          }
           console.log(`[PersistentStorage] Loaded persistent database from ${DB_FILE}`);
           return parsed;
         }
@@ -138,6 +175,7 @@ export class PersistentStorage {
       profiles: [DEFAULT_WILL_PROFILE],
       memories: DEFAULT_INITIAL_MEMORIES,
       chatHistories: [],
+      reminders: DEFAULT_INITIAL_REMINDERS,
       version: 1,
     };
 
@@ -345,6 +383,78 @@ export class PersistentStorage {
     if (!this.db.burnLogEntries) this.db.burnLogEntries = [];
     this.db.burnLogEntries.unshift(entry);
     this.saveDatabase();
+  }
+
+  // --- REMINDERS & TASK MANAGEMENT ---
+  public getReminders(profileId?: string): ReminderItem[] {
+    if (!this.db.reminders) this.db.reminders = [];
+    if (!profileId) return [...this.db.reminders];
+    return this.db.reminders.filter((r) => r.profileId === profileId);
+  }
+
+  public getReminder(id: string): ReminderItem | undefined {
+    if (!this.db.reminders) this.db.reminders = [];
+    return this.db.reminders.find((r) => r.id === id);
+  }
+
+  public createReminder(reminderData: Omit<ReminderItem, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): ReminderItem {
+    if (!this.db.reminders) this.db.reminders = [];
+    const now = new Date().toISOString();
+    const newReminder: ReminderItem = {
+      id: reminderData.id || `REM-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: now,
+      updatedAt: now,
+      ...reminderData,
+    };
+    this.db.reminders.unshift(newReminder);
+    this.saveDatabase();
+    return newReminder;
+  }
+
+  public updateReminder(id: string, updates: Partial<ReminderItem>): ReminderItem | null {
+    if (!this.db.reminders) this.db.reminders = [];
+    const idx = this.db.reminders.findIndex((r) => r.id === id);
+    if (idx === -1) return null;
+
+    const existing = this.db.reminders[idx];
+    const updated: ReminderItem = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    this.db.reminders[idx] = updated;
+    this.saveDatabase();
+    return updated;
+  }
+
+  public deleteReminder(id: string): boolean {
+    if (!this.db.reminders) return false;
+    const initialLen = this.db.reminders.length;
+    this.db.reminders = this.db.reminders.filter((r) => r.id !== id);
+    if (this.db.reminders.length !== initialLen) {
+      this.saveDatabase();
+      return true;
+    }
+    return false;
+  }
+
+  public getDueReminders(profileId?: string): ReminderItem[] {
+    if (!this.db.reminders) return [];
+    const now = new Date().toISOString();
+    return this.db.reminders.filter((r) => {
+      if (profileId && r.profileId !== profileId) return false;
+      if (r.completed) return false;
+      if (r.snoozedUntil && new Date(r.snoozedUntil).toISOString() > now) return false;
+      return new Date(r.dueTimestamp).toISOString() <= now;
+    });
+  }
+
+  public snoozeReminder(id: string, minutes: number = 10): ReminderItem | null {
+    const snoozedUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    return this.updateReminder(id, {
+      snoozedUntil,
+      acknowledged: false,
+    });
   }
 }
 
