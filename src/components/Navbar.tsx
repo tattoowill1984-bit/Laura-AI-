@@ -182,6 +182,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
+          {/* TaskPulse AI Button */}
+          {onOpenReminderModal && (
+            <button
+              onClick={onOpenReminderModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-600/30 border border-purple-500/50 text-purple-200 hover:bg-purple-600/50 hover:border-purple-400 transition-all cursor-pointer shadow-sm"
+              title="Open TaskPulse AI Voice, Matrix & Calendar Engine"
+            >
+              <AlarmClock className="w-3.5 h-3.5 text-purple-300 animate-pulse" />
+              <span>TaskPulse AI</span>
+            </button>
+          )}
+
           {/* Workstation Docked Mode Toggle */}
           {onToggleWorkstationMode && (
             <button

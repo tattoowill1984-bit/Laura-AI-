@@ -516,4 +516,53 @@ export interface NaturalCommandParseResult {
   suggestedResponse?: string;
 }
 
+export type EisenhowerQuadrant = 'Q1_DO_FIRST' | 'Q2_SCHEDULE' | 'Q3_DELEGATE' | 'Q4_ELIMINATE';
+
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface TaskItem {
+  id: string;
+  profileId: string;
+  title: string;
+  description?: string;
+  urgency: number; // 1 to 10
+  importance: number; // 1 to 10
+  eisenhowerQuadrant: EisenhowerQuadrant;
+  priorityScore: number; // 1 to 10
+  priorityLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  category: 'WORK' | 'PERSONAL' | 'HEALTH' | 'LEARNING' | 'MEETING' | 'GENERAL';
+  tags: string[];
+  estimatedMinutes: number;
+  dueDate?: string; // ISO timestamp
+  dueTimeFormatted?: string;
+  scheduledStartTime?: string; // ISO timestamp
+  scheduledEndTime?: string; // ISO timestamp
+  completed: boolean;
+  completedAt?: string;
+  subtasks: SubTask[];
+  reminderMinutesBefore?: number; // e.g. 15
+  reminderTriggered?: boolean;
+  snoozedUntil?: string;
+  aiSuggestedReasoning?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CalendarEventItem {
+  id: string;
+  taskId?: string;
+  title: string;
+  description?: string;
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  category: 'TASK_SLOT' | 'APPOINTMENT' | 'MEETING' | 'DEEP_WORK' | 'PERSONAL';
+  color?: string;
+  location?: string;
+  attendees?: string[];
+}
+
 

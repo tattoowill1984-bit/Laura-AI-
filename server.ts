@@ -1172,6 +1172,494 @@ async function startServer() {
     }
   });
 
+  // --- TASK PULSE AI: ADVANCED TASK & CALENDAR ROUTES ---
+  app.get('/api/tasks', (req, res) => {
+    try {
+      const profileId = (req.query.profileId as string) || 'will-owner';
+      const tasks = persistentStorage.getTasks(profileId);
+      res.json({ success: true, tasks, count: tasks.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching tasks' });
+    }
+  });
+
+  app.post('/api/tasks', (req, res) => {
+    try {
+      const taskData = req.body || {};
+      if (!taskData.title || typeof taskData.title !== 'string') {
+        return res.status(400).json({ error: 'Task title is required.' });
+      }
+      const task = persistentStorage.createTask(taskData);
+      res.json({ success: true, task });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed creating task' });
+    }
+  });
+
+  app.put('/api/tasks/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body || {};
+      const updated = persistentStorage.updateTask(id, updates);
+      if (!updated) {
+        return res.status(404).json({ error: 'Task not found.' });
+      }
+      res.json({ success: true, task: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed updating task' });
+    }
+  });
+
+  app.post('/api/tasks/:id/complete', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = persistentStorage.toggleTaskComplete(id);
+      if (!updated) {
+        return res.status(404).json({ error: 'Task not found.' });
+      }
+      res.json({ success: true, task: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed toggling task complete' });
+    }
+  });
+
+  app.delete('/api/tasks/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = persistentStorage.deleteTask(id);
+      res.json({ success: deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed deleting task' });
+    }
+  });
+
+  app.get('/api/calendar/events', (req, res) => {
+    try {
+      const profileId = (req.query.profileId as string) || 'will-owner';
+      const events = persistentStorage.getCalendarEvents(profileId);
+      res.json({ success: true, events, count: events.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching calendar events' });
+    }
+  });
+
+  app.post('/api/calendar/events', (req, res) => {
+    try {
+      const eventData = req.body || {};
+      if (!eventData.title) {
+        return res.status(400).json({ error: 'Event title is required.' });
+      }
+      const event = persistentStorage.createCalendarEvent(eventData);
+      res.json({ success: true, event });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed creating calendar event' });
+    }
+  });
+
+  app.put('/api/calendar/events/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body || {};
+      const updated = persistentStorage.updateCalendarEvent(id, updates);
+      if (!updated) {
+        return res.status(404).json({ error: 'Event not found.' });
+      }
+      res.json({ success: true, event: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed updating calendar event' });
+    }
+  });
+
+  app.delete('/api/calendar/events/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = persistentStorage.deleteCalendarEvent(id);
+      res.json({ success: deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed deleting calendar event' });
+    }
+  });
+
+  // AI Task Extraction (Voice/Text -> Structured Task with Urgency/Importance)
+  app.post('/api/tasks/ai-parse', async (req, res) => {
+    try {
+      const { text, profileId } = req.body || {};
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ error: 'Text input is required.' });
+      }
+
+      const client = getGenAIClient();
+      let extracted: any = null;
+
+      if (client) {
+        try {
+          const prompt = `You are TaskPulse AI, an intelligent task management engine.
+Analyze the following user input (captured via voice transcription or text) and extract a structured task.
+User Input: "${text}"
+Current DateTime: ${new Date().toISOString()}
+
+Return a JSON object strictly matching this schema:
+{
+  "title": "short concise task title",
+  "description": "optional detailed context or null",
+  "urgency": number (1-10 rating, where 10 is immediate/today, 1 is distant),
+  "importance": number (1-10 rating, where 10 is strategic/high impact, 1 is trivial),
+  "category": "WORK" | "PERSONAL" | "HEALTH" | "LEARNING" | "MEETING" | "GENERAL",
+  "tags": ["tag1", "tag2"],
+  "estimatedMinutes": number (estimated duration in minutes, default 30),
+  "dueDate": "ISO timestamp string if mentioned or inferred, else null",
+  "dueTimeFormatted": "human readable date/time description, e.g. 'Today at 3:00 PM'",
+  "scheduledStartTime": "ISO timestamp for calendar block if time mentioned, else null",
+  "subtasks": ["action step 1", "action step 2"],
+  "aiSuggestedReasoning": "1 sentence explaining why this urgency & importance score was assigned"
+}`;
+
+          const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json'
+            }
+          });
+
+          if (response.text) {
+            extracted = JSON.parse(response.text);
+          }
+        } catch (genErr) {
+          console.warn('[TaskPulse AI] Gemini task parse fallback:', genErr);
+        }
+      }
+
+      if (!extracted) {
+        const lower = text.toLowerCase();
+        let urgency = 5;
+        let importance = 5;
+        if (lower.includes('urgent') || lower.includes('asap') || lower.includes('today') || lower.includes('critical')) urgency = 9;
+        if (lower.includes('important') || lower.includes('priority') || lower.includes('strategic') || lower.includes('key')) importance = 9;
+
+        extracted = {
+          title: text.replace(/^(remind me to|add task|create task|task:)/i, '').trim() || text,
+          description: `Extracted from text: "${text}"`,
+          urgency,
+          importance,
+          category: lower.includes('health') || lower.includes('gym') ? 'HEALTH' : lower.includes('meet') ? 'MEETING' : 'WORK',
+          tags: ['AI-Captured'],
+          estimatedMinutes: 30,
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
+          dueTimeFormatted: 'Today',
+          subtasks: [],
+          aiSuggestedReasoning: 'Parsed using TaskPulse local NLP heuristics.'
+        };
+      }
+
+      const createdTask = persistentStorage.createTask({
+        profileId: profileId || 'will-owner',
+        title: extracted.title,
+        description: extracted.description,
+        urgency: extracted.urgency || 5,
+        importance: extracted.importance || 5,
+        category: extracted.category || 'WORK',
+        tags: extracted.tags || ['Voice-Captured'],
+        estimatedMinutes: extracted.estimatedMinutes || 30,
+        dueDate: extracted.dueDate,
+        dueTimeFormatted: extracted.dueTimeFormatted,
+        scheduledStartTime: extracted.scheduledStartTime,
+        subtasks: (extracted.subtasks || []).map((s: string, idx: number) => ({
+          id: `sub-${Date.now()}-${idx}`,
+          title: s,
+          completed: false
+        })),
+        aiSuggestedReasoning: extracted.aiSuggestedReasoning,
+        completed: false
+      });
+
+      res.json({ success: true, task: createdTask, extracted });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed parsing AI task' });
+    }
+  });
+
+  // AI Auto-Prioritize All Uncompleted Tasks
+  app.post('/api/tasks/ai-prioritize', async (req, res) => {
+    try {
+      const profileId = (req.body && req.body.profileId) || 'will-owner';
+      const tasks = persistentStorage.getTasks(profileId).filter(t => !t.completed);
+
+      if (tasks.length === 0) {
+        return res.json({ success: true, message: 'No uncompleted tasks to prioritize.', updatedTasks: [] });
+      }
+
+      const client = getGenAIClient();
+      if (client) {
+        try {
+          const prompt = `You are TaskPulse AI Prioritization Engine.
+Analyze these tasks and recalculate their Urgency (1-10) and Importance (1-10) based on deadlines, effort, strategic impact, and logical sequence.
+Current DateTime: ${new Date().toISOString()}
+
+Tasks List:
+${JSON.stringify(tasks.map(t => ({ id: t.id, title: t.title, description: t.description, dueDate: t.dueDate, category: t.category, urgency: t.urgency, importance: t.importance })))}
+
+Return a JSON array of updated tasks strictly in this format:
+[
+  {
+    "id": "task_id",
+    "urgency": number (1-10),
+    "importance": number (1-10),
+    "aiSuggestedReasoning": "1 sentence explanation of priority adjustment"
+  }
+]`;
+
+          const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+          });
+
+          if (response.text) {
+            const updates = JSON.parse(response.text);
+            const updatedList = [];
+            for (const item of updates) {
+              if (item.id && typeof item.urgency === 'number' && typeof item.importance === 'number') {
+                const updated = persistentStorage.updateTask(item.id, {
+                  urgency: item.urgency,
+                  importance: item.importance,
+                  aiSuggestedReasoning: item.aiSuggestedReasoning
+                });
+                if (updated) updatedList.push(updated);
+              }
+            }
+            return res.json({ success: true, updatedTasks: updatedList });
+          }
+        } catch (genErr) {
+          console.warn('[TaskPulse AI] AI Prioritize fallback:', genErr);
+        }
+      }
+
+      const updatedList = tasks.map(t => {
+        let u = t.urgency;
+        let i = t.importance;
+        if (t.dueDate && new Date(t.dueDate).getTime() - Date.now() < 24 * 3600 * 1000) {
+          u = Math.min(10, u + 2);
+        }
+        return persistentStorage.updateTask(t.id, {
+          urgency: u,
+          importance: i,
+          aiSuggestedReasoning: 'Prioritized using local deadline proximity heuristics.'
+        }) || t;
+      });
+
+      res.json({ success: true, updatedTasks: updatedList });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed prioritizing tasks' });
+    }
+  });
+
+  // AI Smart Schedule Assistant (Auto-allocate unscheduled tasks into calendar slots)
+  app.post('/api/tasks/ai-schedule-smart', async (req, res) => {
+    try {
+      const profileId = (req.body && req.body.profileId) || 'will-owner';
+      const tasks = persistentStorage.getTasks(profileId).filter(t => !t.completed && !t.scheduledStartTime);
+      const calendarEvents = persistentStorage.getCalendarEvents(profileId);
+
+      if (tasks.length === 0) {
+        return res.json({ success: true, message: 'All tasks are already scheduled on the calendar.', scheduledTasks: [] });
+      }
+
+      const client = getGenAIClient();
+      let scheduledResults: any[] = [];
+
+      if (client) {
+        try {
+          const prompt = `You are TaskPulse AI Calendar Scheduler.
+Schedule the following unscheduled tasks into open time slots starting today (${new Date().toISOString()}).
+Avoid overlaps with existing calendar events.
+
+Unscheduled Tasks:
+${JSON.stringify(tasks.map(t => ({ id: t.id, title: t.title, estimatedMinutes: t.estimatedMinutes, urgency: t.urgency, importance: t.importance, eisenhowerQuadrant: t.eisenhowerQuadrant })))}
+
+Existing Calendar Events:
+${JSON.stringify(calendarEvents.map(e => ({ title: e.title, startTime: e.startTime, endTime: e.endTime })))}
+
+Return a JSON array strictly matching:
+[
+  {
+    "taskId": "task_id",
+    "scheduledStartTime": "ISO timestamp",
+    "scheduledEndTime": "ISO timestamp",
+    "reasoning": "why this slot was selected"
+  }
+]`;
+
+          const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+          });
+
+          if (response.text) {
+            const result = JSON.parse(response.text);
+            for (const item of result) {
+              if (item.taskId && item.scheduledStartTime) {
+                const updated = persistentStorage.updateTask(item.taskId, {
+                  scheduledStartTime: item.scheduledStartTime,
+                  scheduledEndTime: item.scheduledEndTime,
+                  aiSuggestedReasoning: item.reasoning
+                });
+                if (updated) scheduledResults.push(updated);
+              }
+            }
+            return res.json({ success: true, scheduledTasks: scheduledResults });
+          }
+        } catch (genErr) {
+          console.warn('[TaskPulse AI] AI Schedule fallback:', genErr);
+        }
+      }
+
+      let currentPointer = new Date(Date.now() + 60 * 60 * 1000);
+      currentPointer.setMinutes(0, 0, 0);
+
+      for (const t of tasks) {
+        const start = currentPointer.toISOString();
+        const duration = (t.estimatedMinutes || 30) * 60000;
+        const end = new Date(currentPointer.getTime() + duration).toISOString();
+
+        const updated = persistentStorage.updateTask(t.id, {
+          scheduledStartTime: start,
+          scheduledEndTime: end,
+          aiSuggestedReasoning: 'Auto-scheduled into next available hourly focus slot.'
+        });
+        if (updated) scheduledResults.push(updated);
+
+        currentPointer = new Date(currentPointer.getTime() + duration + 30 * 60000);
+      }
+
+      res.json({ success: true, scheduledTasks: scheduledResults });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed auto-scheduling tasks' });
+    }
+  });
+
+  // AI Subtask Breakdown Generator
+  app.post('/api/tasks/ai-breakdown', async (req, res) => {
+    try {
+      const { taskId, taskTitle, taskDescription } = req.body || {};
+      if (!taskId && !taskTitle) {
+        return res.status(400).json({ error: 'Task ID or Task Title is required.' });
+      }
+
+      const client = getGenAIClient();
+      let subtasksList: string[] = [];
+
+      if (client) {
+        try {
+          const prompt = `Break down the task "${taskTitle || 'Task'}" (${taskDescription || ''}) into 3 to 5 clear, actionable subtasks/milestones.
+Return a JSON array of strings strictly matching:
+["Subtask 1 title", "Subtask 2 title", "Subtask 3 title"]`;
+
+          const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+          });
+
+          if (response.text) {
+            subtasksList = JSON.parse(response.text);
+          }
+        } catch (genErr) {
+          console.warn('[TaskPulse AI] Subtask breakdown fallback:', genErr);
+        }
+      }
+
+      if (!subtasksList || subtasksList.length === 0) {
+        subtasksList = [
+          `Gather requirements for ${taskTitle}`,
+          `Draft initial implementation plan`,
+          `Review & verify final results`
+        ];
+      }
+
+      if (taskId) {
+        const task = persistentStorage.getTask(taskId);
+        if (task) {
+          const existing = task.subtasks || [];
+          const newSubtasks = subtasksList.map((st, idx) => ({
+            id: `sub-${Date.now()}-${idx}`,
+            title: st,
+            completed: false
+          }));
+          const updated = persistentStorage.updateTask(taskId, {
+            subtasks: [...existing, ...newSubtasks]
+          });
+          return res.json({ success: true, task: updated, subtasks: newSubtasks });
+        }
+      }
+
+      res.json({ success: true, subtasks: subtasksList });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed generating subtasks' });
+    }
+  });
+
+  // AI Daily Morning Briefing
+  app.get('/api/tasks/ai-briefing', async (req, res) => {
+    try {
+      const profileId = (req.query.profileId as string) || 'will-owner';
+      const tasks = persistentStorage.getTasks(profileId);
+      const events = persistentStorage.getCalendarEvents(profileId);
+
+      const q1Tasks = tasks.filter(t => !t.completed && t.eisenhowerQuadrant === 'Q1_DO_FIRST');
+      const q2Tasks = tasks.filter(t => !t.completed && t.eisenhowerQuadrant === 'Q2_SCHEDULE');
+      const completedCount = tasks.filter(t => t.completed).length;
+
+      const client = getGenAIClient();
+      let briefingText = '';
+
+      if (client) {
+        try {
+          const prompt = `You are TaskPulse AI Daily Briefing Executive Coach.
+Synthesize an inspiring, concise 3-paragraph morning briefing for Will based on his task & calendar load today:
+
+- High Priority (Q1 Do First) Tasks: ${q1Tasks.map(t => t.title).join(', ') || 'None'}
+- Strategic Focus (Q2 Deep Work) Tasks: ${q2Tasks.map(t => t.title).join(', ') || 'None'}
+- Calendar Appointments: ${events.map(e => e.title + ' at ' + new Date(e.startTime).toLocaleTimeString()).join(', ') || 'None'}
+- Completed Tasks Recently: ${completedCount}
+
+Provide actionable advice on time blocking, peak energy focus, and priority alignment.`;
+
+          const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt
+          });
+
+          if (response.text) {
+            briefingText = response.text;
+          }
+        } catch (genErr) {
+          console.warn('[TaskPulse AI] Briefing fallback:', genErr);
+        }
+      }
+
+      if (!briefingText) {
+        briefingText = `Good morning! You have ${q1Tasks.length} urgent Q1 tasks requiring immediate attention today, including "${q1Tasks[0]?.title || 'Key Deliverables'}". You also have ${q2Tasks.length} deep work strategic goals scheduled. Stay focused on your highest leverage activities!`;
+      }
+
+      res.json({
+        success: true,
+        briefing: briefingText,
+        stats: {
+          q1Count: q1Tasks.length,
+          q2Count: q2Tasks.length,
+          totalActive: tasks.filter(t => !t.completed).length,
+          completedCount,
+          eventsCount: events.length
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed generating daily briefing' });
+    }
+  });
+
+
   const handleChatInteraction = async (req: express.Request, res: express.Response) => {
     try {
       const { message, attachments, history, profileId: reqProfileId, modality: reqModality, visualData: reqVisualData, audioData: reqAudioData, cameraFrameBase64: rawCameraFrame } = req.body || {};

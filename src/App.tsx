@@ -16,6 +16,7 @@ import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { InterAIDialogueModal } from './components/InterAIDialogueModal';
 import { AutonomousCognitiveHubModal } from './components/AutonomousCognitiveHubModal';
 import { ReminderManagerModal } from './components/ReminderManagerModal';
+import { TaskPulseTaskManagerModal } from './components/TaskPulseTaskManagerModal';
 import { UnifiedSystemMatrix, UnifiedPanelTab } from './components/UnifiedSystemMatrix';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
 import {
@@ -915,7 +916,7 @@ export default function App() {
         onInsertInsightIntoChat={(text) => handleSendMessage(text, [])}
       />
 
-      <ReminderManagerModal
+      <TaskPulseTaskManagerModal
         isOpen={isReminderModalOpen}
         onClose={() => setIsReminderModalOpen(false)}
         profileId={activeProfile?.id || 'will-owner'}

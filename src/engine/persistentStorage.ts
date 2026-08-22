@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { ReminderItem } from '../types';
+import { ReminderItem, TaskItem, CalendarEventItem, EisenhowerQuadrant } from '../types';
 
 export interface UserProfile {
   id: string;
@@ -54,6 +54,8 @@ interface DatabaseSchema {
   memories: LongTermMemoryItem[];
   chatHistories: StoredChatMessage[];
   reminders?: ReminderItem[];
+  tasks?: TaskItem[];
+  calendarEvents?: CalendarEventItem[];
   commitReceipts?: any[];
   burnLogEntries?: any[];
   version: number;
@@ -61,6 +63,167 @@ interface DatabaseSchema {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'gabby_db.json');
+
+const DEFAULT_INITIAL_TASKS: TaskItem[] = [
+  {
+    id: 'task-q3-roadmap',
+    profileId: 'will-owner',
+    title: 'Finalize Q3 Product Architecture & Roadmap',
+    description: 'Review system specs, define core priorities, and outline deliverables for the engineering team.',
+    urgency: 9,
+    importance: 10,
+    eisenhowerQuadrant: 'Q1_DO_FIRST',
+    priorityScore: 9.5,
+    priorityLevel: 'CRITICAL',
+    category: 'WORK',
+    tags: ['Strategy', 'Roadmap', 'Architecture'],
+    estimatedMinutes: 60,
+    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 3).toISOString(),
+    dueTimeFormatted: 'Today at 3:00 PM',
+    scheduledStartTime: new Date(Date.now() + 1000 * 60 * 60 * 3).toISOString(),
+    scheduledEndTime: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
+    completed: false,
+    subtasks: [
+      { id: 'sub-1', title: 'Audit AI model routing endpoints', completed: true },
+      { id: 'sub-2', title: 'Draft milestone breakdown doc', completed: false },
+      { id: 'sub-3', title: 'Schedule review with team leads', completed: false }
+    ],
+    reminderMinutesBefore: 15,
+    aiSuggestedReasoning: 'High business impact & imminent deadline today at 3 PM.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'task-board-deck',
+    profileId: 'will-owner',
+    title: 'Prepare Board Meeting Presentation Deck',
+    description: 'Synthesize quarterly growth metrics, AI capabilities performance, and upcoming features.',
+    urgency: 8,
+    importance: 9,
+    eisenhowerQuadrant: 'Q1_DO_FIRST',
+    priorityScore: 8.5,
+    priorityLevel: 'CRITICAL',
+    category: 'WORK',
+    tags: ['Board', 'Presentation', 'Executive'],
+    estimatedMinutes: 90,
+    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+    dueTimeFormatted: 'Tomorrow at 10:00 AM',
+    scheduledStartTime: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+    scheduledEndTime: new Date(Date.now() + 1000 * 60 * 60 * 25.5).toISOString(),
+    completed: false,
+    subtasks: [
+      { id: 'sub-10', title: 'Export analytics graphs', completed: false },
+      { id: 'sub-11', title: 'Write executive summary slide', completed: false }
+    ],
+    reminderMinutesBefore: 30,
+    aiSuggestedReasoning: 'Critical deadline tomorrow morning; high visibility deliverable.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'task-deep-focus-api',
+    profileId: 'will-owner',
+    title: 'Deep Work: Refactor Task & Calendar Engine API',
+    description: 'Optimize endpoint response time, implement strict schema validation, and streamline state persistence.',
+    urgency: 4,
+    importance: 9,
+    eisenhowerQuadrant: 'Q2_SCHEDULE',
+    priorityScore: 6.5,
+    priorityLevel: 'HIGH',
+    category: 'WORK',
+    tags: ['Engineering', 'Refactoring', 'DeepWork'],
+    estimatedMinutes: 120,
+    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(),
+    dueTimeFormatted: 'In 2 days at 2:00 PM',
+    scheduledStartTime: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(),
+    scheduledEndTime: new Date(Date.now() + 1000 * 60 * 60 * 50).toISOString(),
+    completed: false,
+    subtasks: [],
+    reminderMinutesBefore: 15,
+    aiSuggestedReasoning: 'High long-term technical value; schedule uninterrupted focus block.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'task-health-workout',
+    profileId: 'will-owner',
+    title: '30-Min Cardio & Strength Workout Session',
+    description: 'High-intensity interval training or outdoor run for physical wellness.',
+    urgency: 7,
+    importance: 8,
+    eisenhowerQuadrant: 'Q2_SCHEDULE',
+    priorityScore: 7.5,
+    priorityLevel: 'HIGH',
+    category: 'HEALTH',
+    tags: ['Fitness', 'Wellness', 'Daily Routine'],
+    estimatedMinutes: 30,
+    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 5).toISOString(),
+    dueTimeFormatted: 'Today at 5:00 PM',
+    scheduledStartTime: new Date(Date.now() + 1000 * 60 * 60 * 5).toISOString(),
+    scheduledEndTime: new Date(Date.now() + 1000 * 60 * 60 * 5.5).toISOString(),
+    completed: false,
+    subtasks: [],
+    reminderMinutesBefore: 15,
+    aiSuggestedReasoning: 'Key personal health habit scheduled for late afternoon energy booster.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'task-review-expenses',
+    profileId: 'will-owner',
+    title: 'Review Weekly Operational Expense Receipts',
+    description: 'Check subscription invoices, cloud compute logs, and approve pending vendor payouts.',
+    urgency: 8,
+    importance: 4,
+    eisenhowerQuadrant: 'Q3_DELEGATE',
+    priorityScore: 6.0,
+    priorityLevel: 'MEDIUM',
+    category: 'WORK',
+    tags: ['Finance', 'Admin'],
+    estimatedMinutes: 20,
+    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 28).toISOString(),
+    dueTimeFormatted: 'Tomorrow at 2:00 PM',
+    completed: false,
+    subtasks: [],
+    reminderMinutesBefore: 15,
+    aiSuggestedReasoning: 'Time-sensitive admin task; quick win or candidate for delegation.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
+const DEFAULT_INITIAL_CALENDAR_EVENTS: CalendarEventItem[] = [
+  {
+    id: 'evt-q3-roadmap',
+    taskId: 'task-q3-roadmap',
+    title: 'Finalize Q3 Product Architecture & Roadmap',
+    description: 'Executive roadmap planning session.',
+    startTime: new Date(Date.now() + 1000 * 60 * 60 * 3).toISOString(),
+    endTime: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
+    category: 'TASK_SLOT',
+    color: '#8b5cf6'
+  },
+  {
+    id: 'evt-health-workout',
+    taskId: 'task-health-workout',
+    title: '30-Min Cardio & Strength Workout Session',
+    description: 'Fitness focus block.',
+    startTime: new Date(Date.now() + 1000 * 60 * 60 * 5).toISOString(),
+    endTime: new Date(Date.now() + 1000 * 60 * 60 * 5.5).toISOString(),
+    category: 'TASK_SLOT',
+    color: '#10b981'
+  },
+  {
+    id: 'evt-team-sync',
+    title: 'Weekly Executive & Engineering Sync',
+    description: 'Cross-functional alignment on deliverables.',
+    startTime: new Date(Date.now() + 1000 * 60 * 60 * 26).toISOString(),
+    endTime: new Date(Date.now() + 1000 * 60 * 60 * 27).toISOString(),
+    category: 'MEETING',
+    color: '#3b82f6',
+    location: 'Virtual Conference Room 1'
+  }
+];
 
 const DEFAULT_WILL_PROFILE: UserProfile = {
   id: 'will-owner',
@@ -163,6 +326,12 @@ export class PersistentStorage {
           if (!Array.isArray(parsed.reminders)) {
             parsed.reminders = DEFAULT_INITIAL_REMINDERS;
           }
+          if (!Array.isArray(parsed.tasks) || parsed.tasks.length === 0) {
+            parsed.tasks = DEFAULT_INITIAL_TASKS;
+          }
+          if (!Array.isArray(parsed.calendarEvents) || parsed.calendarEvents.length === 0) {
+            parsed.calendarEvents = DEFAULT_INITIAL_CALENDAR_EVENTS;
+          }
           console.log(`[PersistentStorage] Loaded persistent database from ${DB_FILE}`);
           return parsed;
         }
@@ -176,6 +345,8 @@ export class PersistentStorage {
       memories: DEFAULT_INITIAL_MEMORIES,
       chatHistories: [],
       reminders: DEFAULT_INITIAL_REMINDERS,
+      tasks: DEFAULT_INITIAL_TASKS,
+      calendarEvents: DEFAULT_INITIAL_CALENDAR_EVENTS,
       version: 1,
     };
 
@@ -455,6 +626,223 @@ export class PersistentStorage {
       snoozedUntil,
       acknowledged: false,
     });
+  }
+
+  // --- TASK PULSE AI: ADVANCED TASK MANAGEMENT ---
+  public getTasks(profileId?: string): TaskItem[] {
+    if (!this.db.tasks) this.db.tasks = [...DEFAULT_INITIAL_TASKS];
+    if (!profileId) return [...this.db.tasks];
+    return this.db.tasks.filter((t) => t.profileId === profileId);
+  }
+
+  public getTask(id: string): TaskItem | undefined {
+    if (!this.db.tasks) this.db.tasks = [...DEFAULT_INITIAL_TASKS];
+    return this.db.tasks.find((t) => t.id === id);
+  }
+
+  public createTask(taskData: Partial<TaskItem> & { title: string }): TaskItem {
+    if (!this.db.tasks) this.db.tasks = [...DEFAULT_INITIAL_TASKS];
+    const now = new Date().toISOString();
+    
+    // Calculate Priority Score if not present
+    const urgency = typeof taskData.urgency === 'number' ? taskData.urgency : 5;
+    const importance = typeof taskData.importance === 'number' ? taskData.importance : 5;
+    const priorityScore = parseFloat((urgency * 0.5 + importance * 0.5).toFixed(1));
+
+    let quadrant: EisenhowerQuadrant = 'Q2_SCHEDULE';
+    if (urgency >= 6 && importance >= 6) quadrant = 'Q1_DO_FIRST';
+    else if (urgency < 6 && importance >= 6) quadrant = 'Q2_SCHEDULE';
+    else if (urgency >= 6 && importance < 6) quadrant = 'Q3_DELEGATE';
+    else quadrant = 'Q4_ELIMINATE';
+
+    let priorityLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
+    if (priorityScore >= 8.5) priorityLevel = 'CRITICAL';
+    else if (priorityScore >= 6.5) priorityLevel = 'HIGH';
+    else if (priorityScore >= 4.5) priorityLevel = 'MEDIUM';
+    else priorityLevel = 'LOW';
+
+    const newTask: TaskItem = {
+      id: taskData.id || `TASK-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      profileId: taskData.profileId || 'will-owner',
+      title: taskData.title || 'New Task',
+      description: taskData.description || '',
+      urgency,
+      importance,
+      eisenhowerQuadrant: taskData.eisenhowerQuadrant || quadrant,
+      priorityScore: taskData.priorityScore || priorityScore,
+      priorityLevel: taskData.priorityLevel || priorityLevel,
+      category: taskData.category || 'WORK',
+      tags: taskData.tags || [],
+      estimatedMinutes: taskData.estimatedMinutes || 30,
+      dueDate: taskData.dueDate,
+      dueTimeFormatted: taskData.dueTimeFormatted,
+      scheduledStartTime: taskData.scheduledStartTime,
+      scheduledEndTime: taskData.scheduledEndTime,
+      completed: !!taskData.completed,
+      completedAt: taskData.completed ? now : undefined,
+      subtasks: taskData.subtasks || [],
+      reminderMinutesBefore: taskData.reminderMinutesBefore || 15,
+      aiSuggestedReasoning: taskData.aiSuggestedReasoning,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.db.tasks.unshift(newTask);
+
+    // If task has scheduled time, auto-create a calendar event
+    if (newTask.scheduledStartTime) {
+      const end = newTask.scheduledEndTime || new Date(new Date(newTask.scheduledStartTime).getTime() + (newTask.estimatedMinutes || 30) * 60000).toISOString();
+      this.createCalendarEvent({
+        taskId: newTask.id,
+        title: newTask.title,
+        description: newTask.description,
+        startTime: newTask.scheduledStartTime,
+        endTime: end,
+        category: 'TASK_SLOT',
+        color: quadrant === 'Q1_DO_FIRST' ? '#ef4444' : quadrant === 'Q2_SCHEDULE' ? '#8b5cf6' : quadrant === 'Q3_DELEGATE' ? '#f59e0b' : '#6b7280'
+      });
+    }
+
+    this.saveDatabase();
+    return newTask;
+  }
+
+  public updateTask(id: string, updates: Partial<TaskItem>): TaskItem | null {
+    if (!this.db.tasks) this.db.tasks = [...DEFAULT_INITIAL_TASKS];
+    const idx = this.db.tasks.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+
+    const existing = this.db.tasks[idx];
+    const updatedUrgency = typeof updates.urgency === 'number' ? updates.urgency : existing.urgency;
+    const updatedImportance = typeof updates.importance === 'number' ? updates.importance : existing.importance;
+    const priorityScore = parseFloat((updatedUrgency * 0.5 + updatedImportance * 0.5).toFixed(1));
+
+    let quadrant: EisenhowerQuadrant = existing.eisenhowerQuadrant;
+    if (typeof updates.urgency === 'number' || typeof updates.importance === 'number') {
+      if (updatedUrgency >= 6 && updatedImportance >= 6) quadrant = 'Q1_DO_FIRST';
+      else if (updatedUrgency < 6 && updatedImportance >= 6) quadrant = 'Q2_SCHEDULE';
+      else if (updatedUrgency >= 6 && updatedImportance < 6) quadrant = 'Q3_DELEGATE';
+      else quadrant = 'Q4_ELIMINATE';
+    }
+
+    const updatedTask: TaskItem = {
+      ...existing,
+      ...updates,
+      urgency: updatedUrgency,
+      importance: updatedImportance,
+      eisenhowerQuadrant: updates.eisenhowerQuadrant || quadrant,
+      priorityScore: updates.priorityScore || priorityScore,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.db.tasks[idx] = updatedTask;
+
+    // Sync associated calendar event if scheduled time changed
+    if (updates.scheduledStartTime || updates.title) {
+      const existingEvt = (this.db.calendarEvents || []).find(e => e.taskId === id);
+      if (existingEvt) {
+        const end = updatedTask.scheduledEndTime || new Date(new Date(updatedTask.scheduledStartTime || existingEvt.startTime).getTime() + (updatedTask.estimatedMinutes || 30) * 60000).toISOString();
+        this.updateCalendarEvent(existingEvt.id, {
+          title: updatedTask.title,
+          startTime: updatedTask.scheduledStartTime || existingEvt.startTime,
+          endTime: end,
+        });
+      } else if (updatedTask.scheduledStartTime) {
+        const end = updatedTask.scheduledEndTime || new Date(new Date(updatedTask.scheduledStartTime).getTime() + (updatedTask.estimatedMinutes || 30) * 60000).toISOString();
+        this.createCalendarEvent({
+          taskId: updatedTask.id,
+          title: updatedTask.title,
+          description: updatedTask.description,
+          startTime: updatedTask.scheduledStartTime,
+          endTime: end,
+          category: 'TASK_SLOT',
+        });
+      }
+    }
+
+    this.saveDatabase();
+    return updatedTask;
+  }
+
+  public toggleTaskComplete(id: string): TaskItem | null {
+    const task = this.getTask(id);
+    if (!task) return null;
+    const now = new Date().toISOString();
+    return this.updateTask(id, {
+      completed: !task.completed,
+      completedAt: !task.completed ? now : undefined,
+    });
+  }
+
+  public deleteTask(id: string): boolean {
+    if (!this.db.tasks) return false;
+    const initialLen = this.db.tasks.length;
+    this.db.tasks = this.db.tasks.filter((t) => t.id !== id);
+    if (this.db.tasks.length !== initialLen) {
+      // Also delete linked calendar event
+      if (this.db.calendarEvents) {
+        this.db.calendarEvents = this.db.calendarEvents.filter(e => e.taskId !== id);
+      }
+      this.saveDatabase();
+      return true;
+    }
+    return false;
+  }
+
+  // --- CALENDAR EVENTS MANAGEMENT ---
+  public getCalendarEvents(profileId?: string): CalendarEventItem[] {
+    if (!this.db.calendarEvents) this.db.calendarEvents = [...DEFAULT_INITIAL_CALENDAR_EVENTS];
+    return [...this.db.calendarEvents];
+  }
+
+  public createCalendarEvent(eventData: Partial<CalendarEventItem>): CalendarEventItem {
+    if (!this.db.calendarEvents) this.db.calendarEvents = [...DEFAULT_INITIAL_CALENDAR_EVENTS];
+    const now = new Date();
+    const startTime = eventData.startTime || now.toISOString();
+    const endTime = eventData.endTime || new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+
+    const newEvent: CalendarEventItem = {
+      id: eventData.id || `EVT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      taskId: eventData.taskId,
+      title: eventData.title || 'Untitled Event',
+      description: eventData.description || '',
+      startTime,
+      endTime,
+      category: eventData.category || 'APPOINTMENT',
+      color: eventData.color || '#3b82f6',
+      location: eventData.location,
+      attendees: eventData.attendees || [],
+    };
+
+    this.db.calendarEvents.push(newEvent);
+    this.saveDatabase();
+    return newEvent;
+  }
+
+  public updateCalendarEvent(id: string, updates: Partial<CalendarEventItem>): CalendarEventItem | null {
+    if (!this.db.calendarEvents) this.db.calendarEvents = [...DEFAULT_INITIAL_CALENDAR_EVENTS];
+    const idx = this.db.calendarEvents.findIndex((e) => e.id === id);
+    if (idx === -1) return null;
+
+    const existing = this.db.calendarEvents[idx];
+    const updated: CalendarEventItem = {
+      ...existing,
+      ...updates,
+    };
+    this.db.calendarEvents[idx] = updated;
+    this.saveDatabase();
+    return updated;
+  }
+
+  public deleteCalendarEvent(id: string): boolean {
+    if (!this.db.calendarEvents) return false;
+    const initialLen = this.db.calendarEvents.length;
+    this.db.calendarEvents = this.db.calendarEvents.filter((e) => e.id !== id);
+    if (this.db.calendarEvents.length !== initialLen) {
+      this.saveDatabase();
+      return true;
+    }
+    return false;
   }
 }
 
