@@ -1325,8 +1325,8 @@ Return a JSON object strictly matching this schema:
           if (response.text) {
             extracted = JSON.parse(response.text);
           }
-        } catch (genErr) {
-          console.warn('[TaskPulse AI] Gemini task parse fallback:', genErr);
+        } catch (genErr: any) {
+          console.log('[TaskPulse AI] Gemini task parse note:', genErr?.message || genErr);
         }
       }
 
@@ -1430,8 +1430,8 @@ Return a JSON array of updated tasks strictly in this format:
             }
             return res.json({ success: true, updatedTasks: updatedList });
           }
-        } catch (genErr) {
-          console.warn('[TaskPulse AI] AI Prioritize fallback:', genErr);
+        } catch (genErr: any) {
+          console.log('[TaskPulse AI] AI Prioritize note:', genErr?.message || genErr);
         }
       }
 
@@ -1510,8 +1510,8 @@ Return a JSON array strictly matching:
             }
             return res.json({ success: true, scheduledTasks: scheduledResults });
           }
-        } catch (genErr) {
-          console.warn('[TaskPulse AI] AI Schedule fallback:', genErr);
+        } catch (genErr: any) {
+          console.log('[TaskPulse AI] AI Schedule note:', genErr?.message || genErr);
         }
       }
 
@@ -2762,7 +2762,7 @@ Notes: ${extraction.notes}`,
   });
 
   // 15.5. Governed Execution Kernel & Execution Gate Endpoints
-  app.post('/api/governed-execution/proposal', async (req, res) => {
+  app.post(['/api/governed-execution/proposal', '/api/kernel/execute'], async (req, res) => {
     try {
       const { proposal, trustedIdentityId, capabilityId } = req.body || {};
       if (!proposal || !proposal.action || !proposal.target) {

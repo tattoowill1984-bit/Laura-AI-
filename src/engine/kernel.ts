@@ -77,6 +77,10 @@ export class SentinelMutationKernel {
     return this.posture;
   }
 
+  public getSubstrate(): GabbyCognitiveSubstrate {
+    return this.gabbySubstrate;
+  }
+
   public setPosture(newPosture: DefensivePosture) {
     const old = this.posture;
     this.posture = newPosture;

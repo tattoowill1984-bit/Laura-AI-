@@ -372,21 +372,59 @@ export class EffectorRegistry {
   }
 }
 
-// Seed default safe effectors
+import { persistentStorage } from './persistentStorage';
+import { factsVault } from '../memory/facts';
+import { toolRegistry } from '../tools/registry';
+import { selfStateManager } from './selfState';
+
+// Seed default safe effectors with real execution paths
 EffectorRegistry.registerEffector('WRITE_MEMORY', async (target: string, payload: any) => {
-  return { status: 'MEMORY_WRITTEN', target, payload };
+  const profileId = payload?.profileId || 'will-owner';
+  const memoryText = payload?.fact || payload?.content || target;
+  const category = payload?.category || 'PERSONAL';
+  
+  const memoryItem = persistentStorage.addMemory(profileId, memoryText, category as any, 'EXPERT_USER_STATEMENT', 95);
+  factsVault.addFact(profileId, memoryText, category, 95);
+  
+  return { status: 'MEMORY_WRITTEN', success: true, memoryItem, target };
 });
 
 EffectorRegistry.registerEffector('EXECUTE_TOOL', async (target: string, payload: any) => {
-  return { status: 'TOOL_EXECUTED', target, payload };
+  const toolName = payload?.toolName || target;
+  const toolArgs = payload?.args || payload || {};
+
+  if (!toolRegistry.hasTool(toolName)) {
+    return {
+      status: 'TOOL_EXECUTION_FAILED',
+      success: false,
+      reason: `Tool '${toolName}' is not registered in ToolRegistry.`,
+    };
+  }
+
+  if (!toolCapabilityRegistry.isCapabilityAvailable(toolName as any)) {
+    return {
+      status: 'TOOL_EXECUTION_FAILED',
+      success: false,
+      reason: `Capability '${toolName}' is currently disabled or uninitialized in ToolCapabilityRegistry.`,
+    };
+  }
+
+  const toolResult = await toolRegistry.executeTool(toolName, toolArgs);
+  return { status: 'TOOL_EXECUTED', success: true, toolName, result: toolResult };
 });
 
 EffectorRegistry.registerEffector('CHANGE_POSTURE', async (target: string, payload: any) => {
-  return { status: 'POSTURE_CHANGED', newPosture: target };
+  const newPosture = payload?.posture || target;
+  if (['NORMAL', 'DUCK', 'RAPTOR', 'STONEWALL'].includes(newPosture)) {
+    selfStateManager.updateState({ posture: newPosture as any });
+    return { status: 'POSTURE_CHANGED', success: true, newPosture };
+  }
+  return { status: 'POSTURE_CHANGE_FAILED', success: false, reason: `Invalid posture '${newPosture}'` };
 });
 
 EffectorRegistry.registerEffector('READ_STATE', async (target: string) => {
-  return { status: 'STATE_READ', target };
+  const state = selfStateManager.getState();
+  return { status: 'STATE_READ', success: true, target, state };
 });
 
 EffectorRegistry.registerEffector('EXTERNAL_RETRIEVAL', async (target: string, payload: any) => {
@@ -609,13 +647,13 @@ export class ExecutionGate {
 
     // Predicate 9: Current Posture Re-validation (TOCTOU protection - LAW 6)
     const currentPosture = this.governor.getPosture();
-    if (false) {
+    if (currentPosture === 'STONEWALL' && !['OBSERVE', 'PREDICT', 'HEALTH_CHECK', 'LOG', 'READ_STATE'].includes(proposal.action.toUpperCase())) {
       const failResult: ExecutionResult = {
         success: false,
         proposalId: proposal.proposalId,
         action: proposal.action,
         target: proposal.target,
-        error: `EXECUTION_GATE_DENY: Posture changed to STONEWALL since authorization was issued. Execution blocked.`,
+        error: `EXECUTION_GATE_DENY: System currently in STONEWALL posture. Action '${proposal.action}' is blocked.`,
         revalidationFailed: true,
         revalidationReason: 'POSTURE_SHIFT_STONEWALL',
         executionTimestamp: timestamp,
@@ -627,6 +665,28 @@ export class ExecutionGate {
         EvidenceSourceTier.ANONYMOUS_WEB
       );
       return { result: failResult, merkleNodeHash: logRes.node.merkleHash };
+    }
+
+    if (artifact.postureAtIssuance !== currentPosture) {
+      if (currentPosture === 'DUCK' && proposal.action.toUpperCase().includes('WRITE')) {
+        const failResult: ExecutionResult = {
+          success: false,
+          proposalId: proposal.proposalId,
+          action: proposal.action,
+          target: proposal.target,
+          error: `EXECUTION_GATE_DENY: TOCTOU Posture Shift detected! System posture shifted from '${artifact.postureAtIssuance}' to 'DUCK' prior to execution gate. Action '${proposal.action}' is restricted under DUCK posture.`,
+          revalidationFailed: true,
+          revalidationReason: 'TOCTOU_POSTURE_RESTRICTION',
+          executionTimestamp: timestamp,
+          receiptHash: crypto.createHash('sha256').update(`DENY_TOCTOU_DUCK:${artifact.artifactId}`).digest('hex'),
+        };
+        const logRes = this.substrate.recordObservationAndVerify(
+          `EXECUTION_GATE_RESTRAINT:${failResult.error}`,
+          0.1,
+          EvidenceSourceTier.ANONYMOUS_WEB
+        );
+        return { result: failResult, merkleNodeHash: logRes.node.merkleHash };
+      }
     }
 
     // Predicate 10: Capability Availability Re-validation (TOCTOU protection - LAW 6)

@@ -149,6 +149,10 @@ export class ToolRegistry {
     return this.tools.get(name.toLowerCase());
   }
 
+  public hasTool(name: string): boolean {
+    return this.tools.has(name.toLowerCase());
+  }
+
   public async executeTool(name: string, args: any): Promise<{ success: boolean; result?: any; requiresApproval?: boolean; error?: string }> {
     if (requiresConfirmation(name)) {
       return {

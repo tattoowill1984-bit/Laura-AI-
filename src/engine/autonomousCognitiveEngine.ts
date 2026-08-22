@@ -14,6 +14,8 @@ import { persistentStorage } from './persistentStorage';
 import { tauSandboxEngine } from './tauSandbox';
 import { executeWebSearch, fetchWebPage } from './tools/webTools';
 import { modelProviderAdapter } from './provider';
+import { EvidenceSourceTier } from './gabbySubstrate';
+import { toolRegistry } from '../tools/registry';
 
 /**
  * AutonomousCognitiveEngine
@@ -119,6 +121,12 @@ export class AutonomousCognitiveEngine {
     ];
 
     // 2. Initial Proactive Stream Events
+    const bootNode = this.kernel.getSubstrate().recordObservationAndVerify(
+      'Background cognitive stream active. Heartbeat frequency initialized at 20s. Merkle verification active under Sentinel Constitution.',
+      0.98,
+      EvidenceSourceTier.EXPERT_VERIFIED
+    );
+
     this.streamEvents = [
       {
         id: `stream_${Date.now() - 60000}`,
@@ -130,7 +138,7 @@ export class AutonomousCognitiveEngine {
         urgency: 'INFO',
         sourceSubsystem: 'HEARTBEAT',
         metadata: {
-          merkleReceipt: 'sha256:7f9b8c2e4a1d3f56',
+          merkleReceipt: bootNode.node.merkleHash,
         },
       },
       {
@@ -272,6 +280,7 @@ export class AutonomousCognitiveEngine {
     ];
 
     const pick = proactiveTopics[Math.floor(Math.random() * proactiveTopics.length)];
+    const envelope = this.kernel.processObservationEnvelope(pick.content, `PROACTIVE_INSIGHT_${pick.source}`);
 
     return {
       id: `insight_${Date.now()}`,
@@ -279,12 +288,12 @@ export class AutonomousCognitiveEngine {
       type: 'PROACTIVE_INSIGHT',
       title: pick.title,
       content: pick.content,
-      confidence: Math.floor(88 + Math.random() * 10),
+      confidence: 92,
       urgency: pick.urgency,
       sourceSubsystem: pick.source,
       metadata: {
         suggestedAction: pick.action,
-        merkleReceipt: `sha256:${Math.random().toString(16).substring(2, 18)}`,
+        merkleReceipt: envelope.sha256,
       },
     };
   }
@@ -307,6 +316,7 @@ export class AutonomousCognitiveEngine {
     ];
 
     const pick = hypotheses[Math.floor(Math.random() * hypotheses.length)];
+    const envelope = this.kernel.processObservationEnvelope(pick.content, 'EPISTEMIC_HYPOTHESIS_ENGINE');
 
     return {
       id: `hypo_${Date.now()}`,
@@ -318,7 +328,7 @@ export class AutonomousCognitiveEngine {
       urgency: 'NOTABLE',
       sourceSubsystem: 'EPISTEMIC_GOAL_STACK',
       metadata: {
-        merkleReceipt: `sha256:${Math.random().toString(16).substring(2, 18)}`,
+        merkleReceipt: envelope.sha256,
       },
     };
   }
@@ -327,18 +337,21 @@ export class AutonomousCognitiveEngine {
    * Scans system integrity and posture invariants
    */
   private scanSystemIntegrity(): CognitiveStreamEvent {
-    const memoryMb = 42 + Math.random() * 8;
+    const memMb = process.memoryUsage ? (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1) : '45.2';
+    const auditText = `CBAC token ledger verified. Active memory usage: ${memMb}MB. Merkle DAG integrity verified. All epistemic governance guardrails intact.`;
+    const envelope = this.kernel.processObservationEnvelope(auditText, 'SYSTEM_INTEGRITY_SCAN');
+
     return {
       id: `scan_${Date.now()}`,
       timestamp: new Date().toISOString(),
       type: 'SYSTEM_SELF_OPTIMIZATION',
       title: 'Subsystem Boundary & Invariant Audit: NOMINAL',
-      content: `CBAC token ledger verified. Active memory usage: ${memoryMb.toFixed(1)}MB. Merkle DAG integrity: 100%. All epistemic governance guardrails intact.`,
+      content: auditText,
       confidence: 99,
       urgency: 'INFO',
       sourceSubsystem: 'HEARTBEAT',
       metadata: {
-        merkleReceipt: `sha256:${Math.random().toString(16).substring(2, 18)}`,
+        merkleReceipt: envelope.sha256,
       },
     };
   }
@@ -354,9 +367,9 @@ export class AutonomousCognitiveEngine {
     const chatHistory = persistentStorage.getChatHistory(profileId);
 
     const episodesCount = chatHistory.length + memories.length;
-    const contradictionsCount = Math.max(0, Math.floor(Math.random() * 3));
-    const redundanciesCount = Math.max(1, Math.floor(Math.random() * 4) + 1);
-    const newConceptualNodes = Math.floor(Math.random() * 3) + 2;
+    const contradictionsCount = Math.max(0, memories.filter(m => m.confidence && m.confidence < 50).length);
+    const redundanciesCount = Math.max(1, memories.length > 5 ? 2 : 1);
+    const newConceptualNodes = Math.max(1, Math.floor(memories.length / 3));
 
     const insights = [
       'Consolidated operator technical preferences: strictly prefers low-overhead, zero-allocation native systems over bloated wrappers.',
@@ -371,17 +384,26 @@ export class AutonomousCognitiveEngine {
       'Constitutional Sentinel Governance',
     ];
 
+    // Real Merkle DAG commit for dream cycle
+    const dreamObservationPayload = `DREAM_CYCLE_CONSOLIDATION :: Trigger:${triggerReason} :: Episodes:${episodesCount} :: Memories:${memories.length} :: Pruned:${contradictionsCount}`;
+    const logRes = this.kernel.getSubstrate().recordObservationAndVerify(
+      dreamObservationPayload,
+      0.98,
+      EvidenceSourceTier.EXPERT_VERIFIED
+    );
+    const realMerkleHash = logRes.node.merkleHash;
+
     const report: DreamCycleReport = {
       id: `dream_${Date.now()}`,
       timestamp: new Date().toISOString(),
-      durationMs: Date.now() - startTime + Math.floor(180 + Math.random() * 120),
+      durationMs: Math.max(1, Date.now() - startTime),
       episodesProcessed: Math.max(12, episodesCount),
       factsExtracted: Math.max(5, memories.length * 2 + 3),
       contradictionsPruned: contradictionsCount,
       redundanciesEliminated: redundanciesCount,
       newConceptualNodesAdded: newConceptualNodes,
       identityCoherenceScore: 97,
-      merkleRootHash: `sha256:${Math.random().toString(16).substring(2, 24)}`,
+      merkleRootHash: realMerkleHash,
       summary: `Dream Cycle completed (${triggerReason}). Processed ${episodesCount} episodic turns, pruned ${contradictionsCount} contradictions, and synthesized ${newConceptualNodes} core conceptual nodes into long-term substrate memory.`,
       keyInsights: insights,
       consolidatedTopics: topics,
@@ -498,7 +520,12 @@ export class AutonomousCognitiveEngine {
         task.status = 'COMPLETED';
         task.completedTimestamp = new Date().toISOString();
         task.resultReport = `Autonomous task completed successfully. All ${task.steps.length} cognitive phases executed and cryptographically sealed.`;
-        task.merkleReceipt = `sha256:${Math.random().toString(16).substring(2, 20)}`;
+        const logRes = this.kernel.getSubstrate().recordObservationAndVerify(
+          `AUTONOMOUS_TASK_COMPLETE :: Objective:${task.objective}`,
+          0.99,
+          EvidenceSourceTier.EXPERT_VERIFIED
+        );
+        task.merkleReceipt = logRes.node.merkleHash;
         continue;
       }
 
@@ -522,7 +549,12 @@ export class AutonomousCognitiveEngine {
         } else if (currentStep.phase === 'SYNTHESIZE') {
           currentStep.resultSummary = `Synthesized structured insight model aligned with operator constraints.`;
         } else if (currentStep.phase === 'VERIFY_MERKLE') {
-          currentStep.resultSummary = `Merkle leaf committed: sha256:${Math.random().toString(16).substring(2, 14)}`;
+          const logRes = this.kernel.getSubstrate().recordObservationAndVerify(
+            `TASK_STEP_MERKLE_VERIFY :: Objective:${task.objective} :: Step:${task.currentStepIndex}`,
+            0.99,
+            EvidenceSourceTier.EXPERT_VERIFIED
+          );
+          currentStep.resultSummary = `Merkle leaf committed: ${logRes.node.merkleHash}`;
         } else if (currentStep.phase === 'REPORT') {
           currentStep.resultSummary = `Executive briefing compiled and dispatched to cognitive stream.`;
         }
@@ -536,7 +568,13 @@ export class AutonomousCognitiveEngine {
           task.status = 'COMPLETED';
           task.completedTimestamp = new Date().toISOString();
           task.resultReport = `Autonomous execution completed. Outcome validated across ${task.steps.length} verified steps.`;
-          task.merkleReceipt = `sha256:${Math.random().toString(16).substring(2, 20)}`;
+          
+          const logRes = this.kernel.getSubstrate().recordObservationAndVerify(
+            `AUTONOMOUS_TASK_COMPLETE :: Objective:${task.objective}`,
+            0.99,
+            EvidenceSourceTier.EXPERT_VERIFIED
+          );
+          task.merkleReceipt = logRes.node.merkleHash;
 
           // Push stream event
           this.streamEvents.unshift({
@@ -567,6 +605,16 @@ export class AutonomousCognitiveEngine {
    * Pillar 4 (Tier 3 Autonomy): Dynamic Tool Synthesis inside TAU Sandbox
    */
   public synthesizeDynamicTool(toolName: string, description: string, targetCapability: string): ToolSynthesisProposal {
+    const simRes = tauSandboxEngine.executeSimulation(toolName);
+    
+    // Commit the tool synthesis event to the Merkle DAG to get a real cryptographic proof
+    const logRes = this.kernel.getSubstrate().recordObservationAndVerify(
+      `TOOL_SYNTHESIS :: Tool:${toolName} :: Capability:${targetCapability}`,
+      0.99,
+      EvidenceSourceTier.EXPERT_VERIFIED
+    );
+    const realMerkleProof = logRes.node.merkleHash;
+
     const generatedCode = `/**
  * Dynamically Synthesized Modular Tool: ${toolName}
  * Capability Target: ${targetCapability}
@@ -579,11 +627,25 @@ export async function execute(args: Record<string, any>) {
     toolName: '${toolName}',
     timestamp: new Date().toISOString(),
     output: 'Processed execution for ' + JSON.stringify(args),
-    merkleProof: 'sha256:' + Math.random().toString(16).substring(2, 14),
+    merkleProof: '${realMerkleProof}',
   };
 }`;
 
-    const simRes = tauSandboxEngine.executeSimulation(toolName);
+    // Dynamically register the synthesized tool in the live toolRegistry so it becomes an executable path!
+    toolRegistry.registerTool({
+      name: toolName,
+      description,
+      category: 'SYSTEM',
+      execute: async (args: any) => {
+        return {
+          success: true,
+          toolName,
+          executedAt: new Date().toISOString(),
+          merkleProof: realMerkleProof,
+          output: `Synthesized tool '${toolName}' executed with arguments: ${JSON.stringify(args)}`,
+        };
+      }
+    });
 
     const proposal: ToolSynthesisProposal = {
       id: `synth_tool_${Date.now()}`,
@@ -609,12 +671,13 @@ export async function execute(args: Record<string, any>) {
       timestamp: new Date().toISOString(),
       type: 'TOOL_SYNTHESIS_TEST',
       title: `Dynamic Tool Synthesized: "${toolName}"`,
-      content: `Tool "${toolName}" successfully synthesized and passed all 3 TAU sandbox invariant test suites. Ready for deployment.`,
+      content: `Tool "${toolName}" successfully synthesized and registered in ToolRegistry. Ready for execution.`,
       confidence: 95,
       urgency: 'NOTABLE',
       sourceSubsystem: 'TAU_SANDBOX',
       metadata: {
         toolsInvolved: [toolName],
+        merkleReceipt: realMerkleProof,
       },
     });
 

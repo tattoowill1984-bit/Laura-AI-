@@ -45,7 +45,14 @@ export class GeminiProvider implements ModelProvider {
     const systemPrompt = options.systemInstruction || `${personaData.systemPrompt}\n${personaData.boundaries.map(b => `- ${b}`).join('\n')}`;
 
     if (ai) {
-      const preferredModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+      const preferredModels = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.5-flash',
+        'gemini-3.6-flash',
+      ];
       for (const modelName of preferredModels) {
         let attempts = 0;
         const maxAttempts = 2;
@@ -70,8 +77,7 @@ export class GeminiProvider implements ModelProvider {
 
             configObj.toolConfig = { includeServerSideToolInvocations: true };
 
-            // thinkingConfig is supported on gemini-3.6-flash / gemini-3.7-flash
-            if (modelName.includes('3.6') || modelName.includes('3.7') || modelName.includes('3.5')) {
+            if (modelName.includes('3.6') || modelName.includes('3.7') || modelName.includes('3.5') || modelName.includes('2.5')) {
               configObj.thinkingConfig = {
                 thinkingBudget: 1024,
               };
@@ -131,7 +137,7 @@ export class GeminiProvider implements ModelProvider {
                     });
                     followUpText = followUpRes.text || followUpRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
                   } catch (followUpErr) {
-                    console.warn(`[GeminiProvider] Follow-up webSearch generateContent notice:`, (followUpErr as Error)?.message || followUpErr);
+                    console.log(`[GeminiProvider] Follow-up webSearch generateContent note:`, (followUpErr as Error)?.message || followUpErr);
                   }
                   if (followUpText.trim()) {
                     return { text: followUpText.trim(), modelUsed: modelName, fallbackUsed: false, providerName: this.name };
@@ -163,7 +169,7 @@ export class GeminiProvider implements ModelProvider {
                     });
                     followUpText = followUpRes.text || followUpRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
                   } catch (followUpErr) {
-                    console.warn(`[GeminiProvider] Follow-up fetchWebPage generateContent notice:`, (followUpErr as Error)?.message || followUpErr);
+                    console.log(`[GeminiProvider] Follow-up fetchWebPage generateContent note:`, (followUpErr as Error)?.message || followUpErr);
                   }
                   if (followUpText.trim()) {
                     return { text: followUpText.trim(), modelUsed: modelName, fallbackUsed: false, providerName: this.name };
@@ -181,38 +187,27 @@ export class GeminiProvider implements ModelProvider {
           } catch (e) {
             const err = e as any;
             const errMsg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err)) || '';
-            const isRateLimitOr503 = err?.status === 429 || err?.status === 503 || errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED');
+            const isQuotaExhausted = errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quotaMetric') || errMsg.includes('QuotaFailure');
+            const isRateLimitOr503 = err?.status === 429 || err?.status === 503 || errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('high demand') || isQuotaExhausted;
+
+            if (isQuotaExhausted) {
+              console.log(`[GeminiProvider] Daily/project quota limit reached for '${modelName}'. Advancing to next model in pool...`);
+              break; // Immediately move to next model in pool
+            }
 
             if (isRateLimitOr503 && attempts < maxAttempts) {
-              let delayMs = attempts * 1500;
+              let delayMs = attempts * 1000;
               const retryMatch = errMsg.match(/retry in ([0-9\.]+)s/i) || errMsg.match(/retryDelay"?:\s*"([0-9\.]+)s"/i);
               if (retryMatch && retryMatch[1]) {
                 const parsedSec = parseFloat(retryMatch[1]);
                 if (!isNaN(parsedSec) && parsedSec > 0) {
-                  delayMs = Math.min(Math.ceil(parsedSec * 1000) + 500, 6000);
+                  delayMs = Math.min(Math.ceil(parsedSec * 1000) + 500, 4000);
                 }
               }
-              console.log(`[GeminiProvider] Demand/Rate limit notice for '${modelName}'. Retrying in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`);
+              console.log(`[GeminiProvider] Rate limit notice for '${modelName}'. Retrying in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`);
               await new Promise((resolve) => setTimeout(resolve, delayMs));
-            } else if (isRateLimitOr503) {
-              // Try lightweight fast fallback without tool overhead if quota/rate limit was hit
-              try {
-                console.log(`[GeminiProvider] Quota/Rate limit encountered on ${modelName}. Attempting lightweight fallback on gemini-3.6-flash...`);
-                const fallbackRes = await ai.models.generateContent({
-                  model: 'gemini-3.6-flash',
-                  contents,
-                  config: { systemInstruction: systemPrompt, temperature: 0.3 },
-                });
-                const fallbackText = fallbackRes.text || fallbackRes.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
-                if (fallbackText && fallbackText.trim()) {
-                  return { text: fallbackText.trim(), modelUsed: 'gemini-3.6-flash', fallbackUsed: true, providerName: this.name };
-                }
-              } catch (fallbackErr) {
-                console.warn('[GeminiProvider] Lightweight fallback attempt note:', (fallbackErr as Error)?.message);
-              }
-              break;
             } else {
-              console.log(`[GeminiProvider] Model '${modelName}' notice (attempt ${attempts}/${maxAttempts}): ${errMsg.slice(0, 120)}`);
+              console.log(`[GeminiProvider] Model '${modelName}' notice (attempt ${attempts}/${maxAttempts}): ${errMsg.slice(0, 100)}`);
               break;
             }
           }
