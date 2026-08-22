@@ -51,6 +51,7 @@ interface AnamnesisChatInterfaceProps {
   activeProfile?: any;
   onOpenProfileModal?: () => void;
   onOpenPersonalityModal?: () => void;
+  onOpenAutonomousHubModal?: () => void;
   voiceSettings?: {
     autoReadback: boolean;
     selectedVoiceName: string;
@@ -74,6 +75,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   activeProfile,
   onOpenProfileModal,
   onOpenPersonalityModal,
+  onOpenAutonomousHubModal,
   voiceSettings = {
     autoReadback: false,
     selectedVoiceName: '',
@@ -83,6 +85,8 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   onUpdateVoiceSettings,
 }) => {
   const [isInspectorToolsOpen, setIsInspectorToolsOpen] = useState<boolean>(false);
+  const [latestProactiveInsight, setLatestProactiveInsight] = useState<any | null>(null);
+  const [dismissedInsightIds, setDismissedInsightIds] = useState<string[]>([]);
   const [inputText, setInputText] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
   const [expandedEnvelopes, setExpandedEnvelopes] = useState<Record<string, boolean>>({});
@@ -358,7 +362,29 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
         return nextTelem;
       });
     }, 3000);
-    return () => clearInterval(telemetryInterval);
+
+    // Poll for proactive autonomous insights
+    const fetchAutonomyInsight = async () => {
+      try {
+        const res = await fetch('/api/autonomy/state');
+        if (res.ok) {
+          const state = await res.json();
+          if (state.streamEvents && state.streamEvents.length > 0) {
+            const latest = state.streamEvents[0];
+            setLatestProactiveInsight(latest);
+          }
+        }
+      } catch (e) {
+        // silent fail
+      }
+    };
+    fetchAutonomyInsight();
+    const autonomyInterval = setInterval(fetchAutonomyInsight, 6000);
+
+    return () => {
+      clearInterval(telemetryInterval);
+      clearInterval(autonomyInterval);
+    };
   }, []);
 
   // Voice Input State (Phase 2 Auto-Hear - Defaulted off per user preference)
@@ -734,6 +760,23 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Autonomous Cognitive Hub Button */}
+          {onOpenAutonomousHubModal && (
+            <button
+              type="button"
+              onClick={onOpenAutonomousHubModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-cyan-950/70 hover:from-purple-900/70 hover:to-cyan-900/70 text-purple-200 border border-purple-500/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm shadow-purple-500/10 relative"
+              title="Open 5-Pillar Autonomous Cognitive Hub (Continuous Loop, Epistemic Motivation, Dream Cycles, Tool Synthesis)"
+            >
+              <Brain className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+              <span className="hidden sm:inline">Autonomous Core</span>
+              <span className="flex h-1.5 w-1.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+              </span>
+            </button>
+          )}
+
           {/* Personality Core & Intelligence Hub Button */}
           {onOpenPersonalityModal && (
             <button
@@ -985,6 +1028,63 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        {/* Autonomous Continuous Stream Proactive Alert Banner */}
+        {latestProactiveInsight && !dismissedInsightIds.includes(latestProactiveInsight.id) && (
+          <div className="p-3.5 bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-cyan-950/70 border border-purple-500/40 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg animate-in fade-in duration-200">
+            <div className="flex items-start gap-3 flex-1 min-w-[260px]">
+              <div className="p-2 rounded-xl bg-purple-900/60 border border-purple-500/50 text-purple-300 flex-shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4 text-purple-300 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                    Laura Proactive Insight ({latestProactiveInsight.sourceSubsystem})
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-cyan-950 border border-cyan-500/40 text-cyan-300">
+                    Confidence: {latestProactiveInsight.confidence}%
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-snug line-clamp-2">
+                  <strong className="text-purple-300">{latestProactiveInsight.title}: </strong>
+                  {latestProactiveInsight.content}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onSendMessage(`[Discussing Proactive Autonomous Insight: ${latestProactiveInsight.title}]\n${latestProactiveInsight.content}`);
+                  setDismissedInsightIds((prev) => [...prev, latestProactiveInsight.id]);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+              >
+                <Send className="w-3 h-3" />
+                <span>Discuss with Laura</span>
+              </button>
+
+              {onOpenAutonomousHubModal && (
+                <button
+                  type="button"
+                  onClick={onOpenAutonomousHubModal}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono transition-all cursor-pointer"
+                >
+                  View Hub
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setDismissedInsightIds((prev) => [...prev, latestProactiveInsight.id])}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-all cursor-pointer"
+                title="Dismiss banner"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         {/* Phase 2 Live Sensory Feed HUD (Eyes & Ears Auto-Active) */}
         {(isAutoSeeActive || isAutoHearActive) && (
           <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg">

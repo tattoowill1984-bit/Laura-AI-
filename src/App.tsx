@@ -14,6 +14,7 @@ import { ProfileAndMemoryModal, UserProfileClient } from './components/ProfileAn
 import { PersonalityAndRetrievalModal } from './components/PersonalityAndRetrievalModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { InterAIDialogueModal } from './components/InterAIDialogueModal';
+import { AutonomousCognitiveHubModal } from './components/AutonomousCognitiveHubModal';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
 import {
   AutonomyTier,
@@ -96,6 +97,7 @@ export default function App() {
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState<boolean>(false);
   const [isDriveModalOpen, setIsDriveModalOpen] = useState<boolean>(false);
   const [isInterAIModalOpen, setIsInterAIModalOpen] = useState<boolean>(false);
+  const [isAutonomousHubOpen, setIsAutonomousHubOpen] = useState<boolean>(false);
   const [proposalForModal, setProposalForModal] = useState<Proposal | null>(null);
 
   const handleFeedToLauraMemory = async (title: string, content: string, sourceUrl?: string) => {
@@ -615,6 +617,7 @@ export default function App() {
         onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
         onOpenDriveModal={() => setIsDriveModalOpen(true)}
         onOpenInterAIModal={() => setIsInterAIModalOpen(true)}
+        onOpenAutonomousHubModal={() => setIsAutonomousHubOpen(true)}
       />
 
       {/* Posture Bar Control Banner (Shown only in Engineering View) */}
@@ -756,6 +759,14 @@ export default function App() {
         isOpen={isInterAIModalOpen}
         onClose={() => setIsInterAIModalOpen(false)}
         posture={posture}
+      />
+
+      <AutonomousCognitiveHubModal
+        isOpen={isAutonomousHubOpen}
+        onClose={() => setIsAutonomousHubOpen(false)}
+        posture={posture}
+        currentTier={currentTier}
+        onInsertInsightIntoChat={(text) => handleSendMessage(text, [])}
       />
     </div>
   );

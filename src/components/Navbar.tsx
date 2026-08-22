@@ -21,6 +21,7 @@ interface NavbarProps {
   onOpenMigrationModal?: () => void;
   onOpenDriveModal?: () => void;
   onOpenInterAIModal?: () => void;
+  onOpenAutonomousHubModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -42,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMigrationModal,
   onOpenDriveModal,
   onOpenInterAIModal,
+  onOpenAutonomousHubModal,
 }) => {
   const getPostureBadge = () => {
     switch (posture) {
@@ -103,6 +105,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Actions & Profile Memory Button */}
           <div className="flex items-center gap-2">
+            {onOpenAutonomousHubModal && (
+              <button
+                onClick={onOpenAutonomousHubModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-cyan-950/70 border border-purple-500/40 text-purple-200 hover:border-purple-400 transition-all cursor-pointer shadow-sm relative"
+                title="Open 5-Pillar Autonomous Cognitive Hub (Continuous Loop, Epistemic Goals, Dream Cycles, Tool Synthesis)"
+              >
+                <Brain className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                <span>Autonomous Core</span>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                </span>
+              </button>
+            )}
+
             {onOpenPersonalityModal && (
               <button
                 onClick={onOpenPersonalityModal}
@@ -213,6 +230,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Layers className="w-3.5 h-3.5 text-purple-400" />
             15 Survival Layers
           </button>
+
+          {onOpenAutonomousHubModal && (
+            <button
+              onClick={onOpenAutonomousHubModal}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-gradient-to-r from-purple-950/90 via-indigo-950/90 to-cyan-950/90 text-purple-200 border border-purple-500/40 hover:border-purple-400 transition-all cursor-pointer shadow-sm shadow-purple-500/10"
+              title="Open 5-Pillar Autonomous Cognitive Hub"
+            >
+              <Brain className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+              <span>Autonomous Core</span>
+              <span className="flex h-1.5 w-1.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+              </span>
+            </button>
+          )}
 
           {onOpenInterAIModal && (
             <button

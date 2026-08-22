@@ -55,6 +55,7 @@ import { requiresConfirmation } from './src/tools/confirmation';
 import { extractionEngine } from './src/tools/extractionEngine';
 import { executeWebSearch, fetchWebPage, webToolDeclarations } from './src/engine/tools/webTools';
 import { personalityCoreEngine } from './src/engine/personalityCore';
+import { AutonomousCognitiveEngine } from './src/engine/autonomousCognitiveEngine';
 
 heartbeatLoop.start();
 
@@ -67,6 +68,10 @@ externalRetrievalGateway.setExecutionKernel(governedExecutionKernel);
 const govTools = new GovernanceTools(kernel);
 const healthLoop = new AutonomousHealthLoop(kernel);
 healthLoop.start(5000); // 5s interval background monitoring loop
+
+// Initialize 5-Pillar Autonomous Cognitive Engine
+const autonomousEngine = AutonomousCognitiveEngine.getInstance(kernel);
+autonomousEngine.start();
 
 // Server-side Gemini initialization
 let aiClient: GoogleGenAI | null = null;
@@ -394,6 +399,126 @@ async function startServer() {
       });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Novelty analysis failed' });
+    }
+  });
+
+  // 4.3 5-Pillar Autonomous Cognitive Engine Routes
+  app.get('/api/autonomy/state', (req, res) => {
+    try {
+      res.json(autonomousEngine.getState());
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching autonomous engine state' });
+    }
+  });
+
+  app.post('/api/autonomy/config', (req, res) => {
+    try {
+      const updatedConfig = autonomousEngine.updateConfig(req.body || {});
+      res.json({ success: true, config: updatedConfig });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed updating autonomous config' });
+    }
+  });
+
+  app.post('/api/autonomy/tick', async (req, res) => {
+    try {
+      const event = await autonomousEngine.tick();
+      res.json({ success: true, event, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed executing autonomous tick' });
+    }
+  });
+
+  app.post('/api/autonomy/dream-cycle', async (req, res) => {
+    try {
+      const { triggerReason } = req.body || {};
+      const report = await autonomousEngine.executeDreamCycle(triggerReason || 'OPERATOR_DASHBOARD_TRIGGER');
+      res.json({ success: true, report, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed executing dream cycle' });
+    }
+  });
+
+  app.post('/api/autonomy/tasks/create', (req, res) => {
+    try {
+      const { objective, goalId } = req.body || {};
+      if (!objective || typeof objective !== 'string') {
+        return res.status(400).json({ error: 'objective is required' });
+      }
+      const task = autonomousEngine.createAutonomousTask(objective, goalId);
+      res.json({ success: true, task, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed creating autonomous task' });
+    }
+  });
+
+  app.post('/api/autonomy/tasks/advance', async (req, res) => {
+    try {
+      await autonomousEngine.advanceActiveTasks();
+      res.json({ success: true, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed advancing autonomous tasks' });
+    }
+  });
+
+  app.post('/api/autonomy/tools/synthesize', (req, res) => {
+    try {
+      const { toolName, description, targetCapability } = req.body || {};
+      if (!toolName) {
+        return res.status(400).json({ error: 'toolName is required' });
+      }
+      const proposal = autonomousEngine.synthesizeDynamicTool(
+        toolName,
+        description || 'Synthesized modular capability',
+        targetCapability || 'DYNAMIC_EXPANSION'
+      );
+      res.json({ success: true, proposal, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Tool synthesis failed' });
+    }
+  });
+
+  app.post('/api/autonomy/goals', (req, res) => {
+    try {
+      const { title, description, origin, priority } = req.body || {};
+      if (!title) {
+        return res.status(400).json({ error: 'title is required' });
+      }
+      const goal = autonomousEngine.addGoal(title, description || '', origin || 'OPERATOR_PROMPT', priority || 'MEDIUM');
+      res.json({ success: true, goal, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed creating epistemic goal' });
+    }
+  });
+
+  app.post('/api/autonomy/goals/:id/progress', (req, res) => {
+    try {
+      const { id } = req.params;
+      const { progressPercent, status } = req.body || {};
+      autonomousEngine.updateGoalProgress(id, progressPercent ?? 100, status);
+      res.json({ success: true, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed updating goal progress' });
+    }
+  });
+
+  app.delete('/api/autonomy/goals/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = autonomousEngine.deleteGoal(id);
+      res.json({ success: deleted, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed deleting goal' });
+    }
+  });
+
+  app.post('/api/autonomy/events/read', (req, res) => {
+    try {
+      const { eventId } = req.body || {};
+      if (eventId) autonomousEngine.markEventRead(eventId);
+      res.json({ success: true, state: autonomousEngine.getState() });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed marking event read' });
     }
   });
 

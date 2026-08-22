@@ -343,3 +343,139 @@ export interface ChatMessage {
   vnextTurn?: any;
 }
 
+// ─── 5-PILLAR AUTONOMOUS COGNITIVE ENGINE TYPES ───
+
+export type CognitiveEventType =
+  | 'PROACTIVE_INSIGHT'
+  | 'ANOMALY_DETECTED'
+  | 'CURIOSITY_TRIGGER'
+  | 'EPISTEMIC_HYPOTHESIS'
+  | 'MEMORY_CONSOLIDATION_EVENT'
+  | 'TASK_STEP_ADVANCE'
+  | 'TOOL_SYNTHESIS_TEST'
+  | 'SYSTEM_SELF_OPTIMIZATION';
+
+export interface CognitiveStreamEvent {
+  id: string;
+  timestamp: string;
+  type: CognitiveEventType;
+  title: string;
+  content: string;
+  confidence: number; // 0 - 100
+  urgency: 'INFO' | 'NOTABLE' | 'ACTION_REQUIRED' | 'CRITICAL';
+  sourceSubsystem: 'SENSORY' | 'WORLD_MODEL' | 'EPISTEMIC_GOAL_STACK' | 'DREAM_CYCLE' | 'TAU_SANDBOX' | 'HEARTBEAT';
+  metadata?: {
+    suggestedAction?: string;
+    merkleReceipt?: string;
+    targetQuery?: string;
+    contradictionCount?: number;
+    toolsInvolved?: string[];
+  };
+  read?: boolean;
+  insertedIntoChat?: boolean;
+}
+
+export type EpistemicGoalOrigin = 'OPERATOR_PROMPT' | 'AUTONOMOUS_CURIOSITY' | 'SYSTEM_INTEGRITY' | 'KNOWLEDGE_GAP_DISCOVERY' | 'DREAM_DISTILLATION';
+export type EpistemicGoalStatus = 'QUEUED' | 'ACTIVE' | 'BLOCKED_ON_GOVERNANCE' | 'COMPLETED' | 'SUPERSEDED' | 'FAILED';
+
+export interface EpistemicGoal {
+  id: string;
+  title: string;
+  description: string;
+  origin: EpistemicGoalOrigin;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: EpistemicGoalStatus;
+  progressPercent: number;
+  confidenceScore: number;
+  createdTimestamp: string;
+  updatedTimestamp: string;
+  tags: string[];
+  subtasks?: string[];
+  associatedEntities?: string[];
+  merkleProofHash?: string;
+}
+
+export interface AutonomousTaskStep {
+  stepId: string;
+  stepNumber: number;
+  phase: 'PERCEIVE' | 'RESEARCH' | 'SYNTHESIZE' | 'SANDBOX_TEST' | 'VERIFY_MERKLE' | 'REPORT';
+  title: string;
+  toolToExecute?: string;
+  toolArgs?: Record<string, any>;
+  status: 'PENDING' | 'EXECUTING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
+  resultSummary?: string;
+  executionDurationMs?: number;
+  capabilityTokenVerified?: boolean;
+}
+
+export interface AutonomousTask {
+  taskId: string;
+  goalId?: string;
+  objective: string;
+  steps: AutonomousTaskStep[];
+  currentStepIndex: number;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PAUSED';
+  createdTimestamp: string;
+  completedTimestamp?: string;
+  resultReport?: string;
+  merkleReceipt?: string;
+  tokensConsumed?: number;
+}
+
+export interface DreamCycleReport {
+  id: string;
+  timestamp: string;
+  durationMs: number;
+  episodesProcessed: number;
+  factsExtracted: number;
+  contradictionsPruned: number;
+  redundanciesEliminated: number;
+  newConceptualNodesAdded: number;
+  identityCoherenceScore: number; // 0 - 100
+  merkleRootHash: string;
+  summary: string;
+  keyInsights: string[];
+  consolidatedTopics: string[];
+}
+
+export interface ToolSynthesisProposal {
+  id: string;
+  toolName: string;
+  description: string;
+  targetCapability: string;
+  generatedCode: string;
+  sandboxTestResults: {
+    passed: boolean;
+    testsRun: number;
+    testsPassed: number;
+    executionTimeMs: number;
+    safetyViolationsDetected: number;
+    errorOutput?: string;
+  };
+  governanceStatus: 'SANDBOX_VALIDATED' | 'REGISTERED_ACTIVE' | 'REJECTED';
+  createdTimestamp: string;
+}
+
+export interface AutonomousEngineConfig {
+  heartbeatEnabled: boolean;
+  heartbeatIntervalSeconds: number;
+  curiosityThreshold: number; // 0 - 100
+  dreamCycleIntervalMinutes: number;
+  autoExecuteSafeTasks: boolean;
+  proactiveNotificationsEnabled: boolean;
+  cbacEnforcementStrict: boolean;
+}
+
+export interface AutonomousEngineState {
+  config: AutonomousEngineConfig;
+  isRunning: boolean;
+  totalTicks: number;
+  lastTickTimestamp: string;
+  activeGoalCount: number;
+  streamEvents: CognitiveStreamEvent[];
+  activeTasks: AutonomousTask[];
+  recentDreamCycles: DreamCycleReport[];
+  synthesizedTools: ToolSynthesisProposal[];
+  epistemicGoals: EpistemicGoal[];
+}
+
