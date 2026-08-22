@@ -17,6 +17,7 @@ interface NavbarProps {
   onOpenMasterKeyModal?: () => void;
   activeProfile?: any;
   onOpenProfileModal?: () => void;
+  onOpenPersonalityModal?: () => void;
   onOpenMigrationModal?: () => void;
   onOpenDriveModal?: () => void;
   onOpenInterAIModal?: () => void;
@@ -37,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMasterKeyModal,
   activeProfile,
   onOpenProfileModal,
+  onOpenPersonalityModal,
   onOpenMigrationModal,
   onOpenDriveModal,
   onOpenInterAIModal,
@@ -101,6 +103,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Actions & Profile Memory Button */}
           <div className="flex items-center gap-2">
+            {onOpenPersonalityModal && (
+              <button
+                onClick={onOpenPersonalityModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-950/60 to-pink-950/60 border border-purple-500/40 text-purple-200 hover:bg-purple-900/60 hover:border-purple-400 transition-all cursor-pointer shadow-sm shadow-purple-500/10"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Personality & Context</span>
+              </button>
+            )}
+
             {onOpenDriveModal && (
               <button
                 onClick={onOpenDriveModal}
@@ -209,6 +221,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-purple-400" />
               Inter-AI Channel
+            </button>
+          )}
+
+          {onOpenPersonalityModal && (
+            <button
+              onClick={onOpenPersonalityModal}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-purple-300 bg-gradient-to-r from-purple-950/80 to-pink-950/80 border border-purple-500/40 hover:bg-purple-900/60 hover:border-purple-400 transition-all cursor-pointer shadow-sm shadow-purple-500/10"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              Personality & Context Hub
             </button>
           )}
 

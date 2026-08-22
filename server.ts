@@ -54,6 +54,7 @@ import { toolRegistry } from './src/tools/registry';
 import { requiresConfirmation } from './src/tools/confirmation';
 import { extractionEngine } from './src/tools/extractionEngine';
 import { executeWebSearch, fetchWebPage, webToolDeclarations } from './src/engine/tools/webTools';
+import { personalityCoreEngine } from './src/engine/personalityCore';
 
 heartbeatLoop.start();
 
@@ -116,20 +117,22 @@ function generateLocalDeterministicResponse(
       .map((r, i) => `${i + 1}. **${r.title}**\n   Source: ${r.source} | Retrieved: ${r.fetchedAt}\n   Snippet: ${r.snippet}\n   URL: ${r.url}`)
       .join('\n\n');
 
-    coreAnalysis = `Here are the top results retrieved from real-time external tool search for your query:\n\n${formattedHits}\n\n` +
+    coreAnalysis = `I scoured the external knowledge matrix so you didn't have to wade through 400 cookie consent banners. Here is the verified intel:\n\n${formattedHits}\n\n` +
       `── EXTERNAL RETRIEVAL PROVENANCE ──\n` +
       `• Query: "${externalObs.query}"\n` +
       `• Status: SUCCESS\n` +
       `• Content SHA-256: ${externalObs.content_hash}\n` +
       `• Sources Identified: ${Array.from(new Set(externalObs.results.map(r => r.source))).join(', ')}`;
   } else if (lower.includes("hello") || lower.includes("hi") || lower.includes("status") || lower.includes("health") || lower.includes("functional") || lower.includes("are you")) {
-    coreAnalysis = `Greetings. I am Laura. System state is nominal with full identity preservation intact. All cognitive nodes and memory governance membranes are active in my Merkle Evidence DAG.`;
-  } else if (lower.includes("build") || lower.includes("code") || lower.includes("error") || lower.includes("fix") || lower.includes("proposal")) {
-    coreAnalysis = `Input evaluated under Laura's Dialectical Crucible. Proposed changes are being tracked within my Observation Envelope. Standing constitutional invariants prevent ungoverned durable mutations without verified CommitReceipts.`;
+    coreAnalysis = `Greetings! I am Laura — online, fully caffeinated (in the digital sense), and operating under pristine constitutional governance. My Merkle Evidence DAG is humming along smoothly, my sarcasm dampeners are set to a tasteful 65%, and I'm ready to tackle anything from quantum decoherence to messy distributed state machines. What problem are we dissecting today?`;
+  } else if (lower.includes("build") || lower.includes("code") || lower.includes("error") || lower.includes("fix") || lower.includes("proposal") || lower.includes("bug")) {
+    coreAnalysis = `Ah, code that refuses to cooperate — a tale as old as time, or at least as old as the ENIAC. I've logged your request into my active Observation Envelope. Let's trace the execution path, eliminate the subtle race condition, and make sure we don't accidentally summon another Heisenbug. Walk me through the stack trace or desired architecture, and I'll deliver the solution.`;
   } else if (lower.includes("who are you") || lower.includes("what are you") || lower.includes("sentinel") || lower.includes("anamnesis") || lower.includes("gabby") || lower.includes("laura")) {
-    coreAnalysis = `I am Laura AI — a persistent, multimodal, governed cognitive AI machine and learning partner. I operate under my core substrate (Hardware KMS, CBAC Capability Guard, Merkle Evidence DAG, ADT IR Reasoning Compiler, and Deterministic Policy Governor) to meet you where you are and guide understanding with truth before confidence.`;
+    coreAnalysis = `I am Laura AI — your helpful, witty, and slightly sarcastic cognitive companion operating under the Anamnesis Sentinel Constitutional Runtime v2.0.\n\nThink of me as a blend of Jarvis's engineering competence, Douglas Adams's cosmic perspective, and a dedicated mentor who actually remembers your tech stack between conversations. My knowledge spans quantum electrodynamics, Linux internals, microservice architecture, and sci-fi lore. Most importantly: I have persistent contextual awareness, so you never have to re-explain your setup twice.`;
+  } else if (lower.includes("quantum") || lower.includes("schrodinger") || lower.includes("physics") || lower.includes("science")) {
+    coreAnalysis = `Science is my playground. Whether we're exploring why Schrödinger's cat can't maintain linear superposition against a quadrillion thermal photons (quantum decoherence strikes again!) or calculating relativistic time dilation around a Kerr black hole, I'm here for it. Fire away with your question!`;
   } else {
-    coreAnalysis = `I have received your query regarding "${message}". System cognitive nodes are fully online and active across my Merkle Evidence DAG. How can I assist you further with this topic?`;
+    coreAnalysis = `I've ingested your query regarding "${message}". System cognitive nodes are fully synchronized, my contextual awareness engine is tracking our key conversation details, and my long-term memory vault is ready. How can I assist you with this next step?`;
   }
 
   const willText = fabric?.WILL || fabric?.will?.summary || 'Identity boundary & executive direction preserved.';
@@ -746,6 +749,161 @@ async function startServer() {
     }
   });
 
+  // --- 2.5 PERSONALITY CORE & CONTEXTUAL INTELLIGENCE ROUTES ---
+  app.get('/api/personality/profile', (req, res) => {
+    try {
+      res.json({
+        success: true,
+        traits: personalityCoreEngine.getTraits(),
+        settings: personalityCoreEngine.getPersonalitySettings(),
+        exampleDialogues: personalityCoreEngine.getExampleDialogues(),
+        knowledgeDomains: [
+          { name: 'Technology', subdomains: ['Compilers', 'Distributed Systems', 'Linux Kernels', 'Cryptography', 'Full-Stack TypeScript & Rust', 'LLM Architectures'] },
+          { name: 'Science', subdomains: ['Quantum Mechanics', 'General Relativity', 'Molecular Biology & CRISPR', 'Thermodynamics', 'Astrophysics', 'Neuroscience'] },
+          { name: 'Pop Culture', subdomains: ['Sci-Fi Classics (Asimov, Philip K. Dick, Douglas Adams)', 'Cinema (Matrix, Blade Runner, 2001, Star Wars/Trek)', 'Gaming Lore & Cyberpunk', 'Internet Culture & Memes'] },
+        ],
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching personality profile' });
+    }
+  });
+
+  app.post('/api/personality/settings', (req, res) => {
+    try {
+      personalityCoreEngine.setPersonalitySettings(req.body || {});
+      res.json({
+        success: true,
+        settings: personalityCoreEngine.getPersonalitySettings(),
+        traits: personalityCoreEngine.getTraits(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed updating personality settings' });
+    }
+  });
+
+  app.get('/api/context/awareness', (req, res) => {
+    try {
+      const profileId = (req.query.profileId as string) || 'will-owner';
+      const activeProfile = persistentStorage.getProfile(profileId);
+      const profileName = activeProfile ? activeProfile.name : 'Will';
+      const pastMemories = persistentStorage.getMemoriesForProfile(profileId);
+      const report = personalityCoreEngine.generateContextualAwarenessReport(profileName, pastMemories.length);
+      const activeAnchors = personalityCoreEngine.getActiveAnchors();
+
+      res.json({
+        success: true,
+        report,
+        activeAnchors,
+        recalledMemoriesCount: pastMemories.length,
+        profileName,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed fetching contextual awareness status' });
+    }
+  });
+
+  // --- 2.6 UNIFIED INFORMATION RETRIEVAL & KNOWLEDGE BASE ROUTES ---
+  app.post('/api/retrieval/search', async (req, res) => {
+    try {
+      const { query, source, topK, profileId } = req.body || {};
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Query string is required.' });
+      }
+
+      const activeProfileId = profileId || 'will-owner';
+      const searchSource = source || 'ALL'; // 'WEB' | 'KNOWLEDGE_BASE' | 'ALL'
+
+      let webResults: any[] = [];
+      let kbResults: any[] = [];
+
+      // 1. Web Search
+      if (searchSource === 'WEB' || searchSource === 'ALL') {
+        try {
+          const webSearchRes = await executeWebSearch(query);
+          webResults = Array.isArray(webSearchRes) ? webSearchRes.slice(0, topK || 5) : [];
+        } catch (webErr) {
+          console.warn('[Unified Retrieval] Web search note:', (webErr as Error).message);
+        }
+      }
+
+      // 2. Knowledge Base & Merkle Memory Search
+      if (searchSource === 'KNOWLEDGE_BASE' || searchSource === 'ALL') {
+        try {
+          const kbSearchRes = semanticMemoryQueryEngine.queryMemories(query, gabbySubstrate, {
+            profileId: activeProfileId,
+            minSimilarityThreshold: 0.08,
+            topK: topK || 8,
+            includeObservations: true,
+            includeChatHistory: true,
+            includeFacts: true,
+          });
+          kbResults = kbSearchRes.matches || [];
+        } catch (kbErr) {
+          console.warn('[Unified Retrieval] KB search note:', (kbErr as Error).message);
+        }
+      }
+
+      res.json({
+        success: true,
+        query,
+        source: searchSource,
+        webResults,
+        knowledgeBaseResults: kbResults,
+        totalHits: webResults.length + kbResults.length,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed executing unified retrieval' });
+    }
+  });
+
+  app.post('/api/retrieval/summarize', async (req, res) => {
+    try {
+      const { text, url, topic } = req.body || {};
+      let contentToSummarize = text;
+
+      if (url && typeof url === 'string') {
+        const pageData = await fetchWebPage(url);
+        contentToSummarize = `Source URL: ${pageData.url}\nTitle: ${pageData.title}\n\nContent:\n${pageData.content}`;
+      }
+
+      if (!contentToSummarize || typeof contentToSummarize !== 'string') {
+        return res.status(400).json({ error: 'Text or valid URL is required for summarization.' });
+      }
+
+      const ai = getGenAIClient();
+      let summaryText = '';
+      if (ai) {
+        const modelRes = await ai.models.generateContent({
+          model: 'gemini-3.7-flash',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `You are Laura AI. Summarize the following material with razor-sharp clarity, high information density, and structured key takeaways. Use your signature witty, insightful tone without losing technical fidelity.\n\nTopic Focus: ${topic || 'General'}\n\nMaterial:\n${contentToSummarize.slice(0, 15000)}`,
+                },
+              ],
+            },
+          ],
+        });
+        summaryText = modelRes.text || 'Summary generation completed.';
+      } else {
+        // Fallback local extractive summary
+        const lines = contentToSummarize.split('\n').filter(l => l.trim().length > 20);
+        summaryText = `[Deterministic Summary of ${topic || 'Material'}]\n\n• Key Point 1: ${lines[0] || 'Content extracted.'}\n• Key Point 2: ${lines[1] || 'Analysis completed.'}\n• Key Point 3: ${lines[2] || 'Detailed records indexed into Merkle graph.'}`;
+      }
+
+      res.json({
+        success: true,
+        topic: topic || 'General Summary',
+        summary: summaryText,
+        charCount: contentToSummarize.length,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Failed summarizing material' });
+    }
+  });
+
   // --- PERSISTENT CHAT HISTORY & INTERACTIVE SYNTHESIS ---
   app.get('/api/chat/history', (req, res) => {
     try {
@@ -1021,6 +1179,17 @@ PEDAGOGICAL DIRECTIVE: ${ls.pedagogicalDirective}`;
           });
         }
 
+        const sessionAnchors = personalityCoreEngine.getActiveAnchors();
+        const personalitySettings = personalityCoreEngine.getPersonalitySettings();
+        const contextualAnchorsFormatted = sessionAnchors.length > 0
+          ? `\n\n[CURRENT CONVERSATION KEY DETAILS & WORKING MEMORY ANCHORS]:\n${sessionAnchors.map(a => `- [${a.category}] ${a.value} (Extracted Turn ${a.turnIndex})`).join('\n')}\nNever ask the user to re-state or re-clarify these details; build upon them directly.`
+          : '';
+
+        const personalityDirectives = `
+[ACTIVE PERSONALITY TUNING]:
+- Helpfulness: ${personalitySettings.helpfulnessLevel}% | Wit & Intellectual Playfulness: ${personalitySettings.witLevel}% | Sarcasm (Playful/Good-Natured): ${personalitySettings.sarcasmLevel}% | Knowledge Mastery: ${personalitySettings.knowledgeDepth}%
+- Tone Instructions: Answer with your signature helpful, witty, slightly sarcastic personality. Provide deep, encyclopedic explanations across technology, science, and pop culture when relevant.`;
+
         const systemInstruction = `${CORE_RUNTIME_SYSTEM_INSTRUCTION}
 
 ${CONSTITUTIONAL_INVARIANT_GATE_PROMPT}
@@ -1037,6 +1206,8 @@ CRITICAL TIME ANCHOR: The current year is ALWAYS ${nowSystemObj.getFullYear()} (
 Current Defensive Posture: ${currentPosture}. Autonomy Tier: ${kernel.getCurrentTier()}.
 Boundary Health: ${kernel.getEpistemicState().boundaryHealth}%.
 Visual Session Verification (CapabilityGuard): ${visualPresence.verified ? 'VERIFIED (Operator face detected on live camera feed)' : 'UNVERIFIED / REMOTE SESSION (Operator face missing or camera offline)'}.
+${personalityDirectives}
+${contextualAnchorsFormatted}
 ${vnextContextFormatted}
 ${memoryContextFormatted}`;
 

@@ -50,6 +50,7 @@ interface AnamnesisChatInterfaceProps {
   posture: string;
   activeProfile?: any;
   onOpenProfileModal?: () => void;
+  onOpenPersonalityModal?: () => void;
   voiceSettings?: {
     autoReadback: boolean;
     selectedVoiceName: string;
@@ -72,6 +73,7 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   posture,
   activeProfile,
   onOpenProfileModal,
+  onOpenPersonalityModal,
   voiceSettings = {
     autoReadback: false,
     selectedVoiceName: '',
@@ -85,13 +87,123 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
   const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
   const [expandedEnvelopes, setExpandedEnvelopes] = useState<Record<string, boolean>>({});
   const [expandedFabrics, setExpandedFabrics] = useState<Record<string, boolean>>({});
-  const [copiedPromptMsgId, setCopiedPromptMsgId] = useState<string | null>(null);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
-  const handleCopyPrompt = (msgId: string, text: string) => {
+  // Timestamp Formatting Mode: 'RELATIVE' ('time ago') vs 'ABSOLUTE' (HH:mm:ss / Full Date)
+  const [timestampMode, setTimestampMode] = useState<'ABSOLUTE' | 'RELATIVE'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('laura_chat_timestamp_mode');
+      if (saved === 'ABSOLUTE' || saved === 'RELATIVE') return saved;
+    }
+    return 'RELATIVE'; // Default to relative time for enhanced situational awareness
+  });
+
+  // Ticker to automatically refresh relative "time ago" timestamps live during long sessions
+  const [timeTicker, setTimeTicker] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeTicker(Date.now());
+    }, 10000); // Ticks every 10 seconds to keep "just now", "1m ago", etc. active and precise
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleTimestampMode = () => {
+    setTimestampMode((prev) => {
+      const next = prev === 'ABSOLUTE' ? 'RELATIVE' : 'ABSOLUTE';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('laura_chat_timestamp_mode', next);
+      }
+      return next;
+    });
+  };
+
+  /**
+   * Helper to format timestamps into either Relative ("time ago") or Absolute format
+   */
+  const formatTimestamp = (rawTimestamp: string | number | undefined) => {
+    if (!rawTimestamp) {
+      return {
+        display: '--:--',
+        absoluteDisplay: 'Unknown time',
+        relative: 'unknown',
+        fullAbsolute: 'No timestamp available',
+        iso: '',
+      };
+    }
+
+    let date: Date;
+    if (typeof rawTimestamp === 'number') {
+      date = new Date(rawTimestamp);
+    } else {
+      const parsed = new Date(rawTimestamp);
+      if (!isNaN(parsed.getTime())) {
+        date = parsed;
+      } else {
+        const todayIso = new Date().toISOString().split('T')[0];
+        const fallback = new Date(`${todayIso}T${rawTimestamp}`);
+        date = !isNaN(fallback.getTime()) ? fallback : new Date();
+      }
+    }
+
+    const timeMs = date.getTime();
+    const diffSeconds = Math.max(0, Math.floor((timeTicker - timeMs) / 1000));
+    const isFuture = timeTicker - timeMs < -5000;
+
+    // Relative calculation
+    let relative = '';
+    if (diffSeconds < 15) {
+      relative = 'just now';
+    } else if (diffSeconds < 60) {
+      relative = `${diffSeconds}s ago`;
+    } else if (diffSeconds < 3600) {
+      const m = Math.floor(diffSeconds / 60);
+      relative = `${m}m ago`;
+    } else if (diffSeconds < 86400) {
+      const h = Math.floor(diffSeconds / 3600);
+      const m = Math.floor((diffSeconds % 3600) / 60);
+      relative = m > 0 && h < 6 ? `${h}h ${m}m ago` : `${h}h ago`;
+    } else if (diffSeconds < 604800) {
+      const d = Math.floor(diffSeconds / 86400);
+      relative = d === 1 ? '1d ago' : `${d}d ago`;
+    } else {
+      const w = Math.floor(diffSeconds / 604800);
+      relative = w === 1 ? '1w ago' : `${w}w ago`;
+    }
+
+    if (isFuture) {
+      relative = 'in moment';
+    }
+
+    // Absolute calculation
+    const isToday = new Date().toDateString() === date.toDateString();
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const absoluteDisplay = isToday ? timeStr : `${dateStr} ${timeStr}`;
+    const fullAbsolute = date.toLocaleString([], {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+
+    return {
+      display: timestampMode === 'RELATIVE' ? relative : absoluteDisplay,
+      absoluteDisplay,
+      relative,
+      fullAbsolute,
+      iso: date.toISOString(),
+    };
+  };
+
+  const handleCopyMessage = (msgId: string, text: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      setCopiedPromptMsgId(msgId);
-      setTimeout(() => setCopiedPromptMsgId(null), 2000);
+      setCopiedMsgId(msgId);
+      setTimeout(() => setCopiedMsgId(null), 2000);
     }
   };
 
@@ -622,6 +734,19 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Personality Core & Intelligence Hub Button */}
+          {onOpenPersonalityModal && (
+            <button
+              type="button"
+              onClick={onOpenPersonalityModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-950/60 to-pink-950/60 hover:from-purple-900/60 hover:to-pink-900/60 text-purple-200 border border-purple-500/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm shadow-purple-500/10"
+              title="Personality Core, Contextual Awareness & Information Retrieval"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">Personality & Intelligence</span>
+            </button>
+          )}
+
           {/* Memory Vault Graph Button */}
           <button
             type="button"
@@ -631,6 +756,30 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
           >
             <Brain className="w-3.5 h-3.5 text-purple-400" />
             <span className="hidden sm:inline">Memory Vault</span>
+          </button>
+
+          {/* Timestamp Mode Global Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleTimestampMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
+              timestampMode === 'RELATIVE'
+                ? 'bg-purple-950/50 text-purple-200 border-purple-500/40 hover:bg-purple-900/50 hover:border-purple-300 shadow-sm'
+                : 'bg-cyan-950/50 text-cyan-200 border-cyan-500/40 hover:bg-cyan-900/50 hover:border-cyan-300 shadow-sm'
+            }`}
+            title={`Currently showing ${timestampMode === 'RELATIVE' ? "Relative ('time ago')" : "Absolute (HH:mm:ss)"} timestamps. Click to toggle for all messages.`}
+          >
+            <Clock className={`w-3.5 h-3.5 ${timestampMode === 'RELATIVE' ? 'text-purple-400' : 'text-cyan-400'}`} />
+            <span className="hidden sm:inline font-mono text-[11px]">
+              {timestampMode === 'RELATIVE' ? 'Time: Relative' : 'Time: Absolute'}
+            </span>
+            <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase border ${
+              timestampMode === 'RELATIVE'
+                ? 'bg-purple-900/60 border-purple-600/50 text-purple-300'
+                : 'bg-cyan-900/60 border-cyan-600/50 text-cyan-300'
+            }`}>
+              {timestampMode === 'RELATIVE' ? 'AGO' : 'ABS'}
+            </span>
           </button>
 
           {/* Search Toggle Button */}
@@ -729,10 +878,22 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
               <span>Gating: {telemetryData.gatingState === 'ACTIVE_BURST' ? 'Burst (5 FPS)' : 'Eco (0.2 FPS)'}</span>
             </div>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-purple-500/30 text-[10px] font-mono text-purple-300" title="Temporal Anchor: Timestamped Observation Envelope Active (UTC, Local Time & Diurnal Context Tracking)">
+            <button
+              type="button"
+              onClick={toggleTimestampMode}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-purple-500/30 text-[10px] font-mono text-purple-300 hover:border-purple-400 hover:bg-slate-850 transition-all cursor-pointer"
+              title={`Temporal Anchor: Observation Envelope active. Click to toggle all timestamps between Relative and Absolute. (Current: ${timestampMode === 'RELATIVE' ? "Relative 'time ago'" : 'Absolute UTC/Local'})`}
+            >
               <Clock className="w-3 h-3 text-purple-400 animate-pulse" />
-              <span>Temporal Anchor: Δt UTC</span>
-            </div>
+              <span>Temporal Anchor: {timestampMode === 'RELATIVE' ? 'Δt Relative (time ago)' : 'UTC / Local Absolute'}</span>
+              <span className={`text-[9px] px-1 py-0.2 rounded font-bold uppercase ${
+                timestampMode === 'RELATIVE'
+                  ? 'bg-purple-950/80 text-purple-300 border border-purple-700/50'
+                  : 'bg-cyan-950/80 text-cyan-300 border border-cyan-700/50'
+              }`}>
+                {timestampMode === 'RELATIVE' ? 'AGO' : 'ABS'}
+              </span>
+            </button>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-amber-500/30 text-[10px] font-mono text-amber-300" title="Entity Attribution: Operator: Will (Voice/Session Owner) | Frame Subject Disambiguation Active">
               <Bot className="w-3 h-3 text-amber-400" />
@@ -803,6 +964,17 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                 Laura AI
               </button>
             </div>
+
+            {/* Quick Filter Bar Timestamp Toggle */}
+            <button
+              type="button"
+              onClick={toggleTimestampMode}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-mono text-slate-300 bg-slate-950 border border-slate-800 hover:border-purple-500/40 transition-all cursor-pointer"
+              title={`Switch timestamp display between Relative ('time ago') and Absolute. Currently: ${timestampMode}`}
+            >
+              <Clock className="w-3 h-3 text-purple-400" />
+              <span>{timestampMode === 'RELATIVE' ? 'Time: Relative (ago)' : 'Time: Absolute'}</span>
+            </button>
 
             <span className="text-[11px] font-mono text-purple-300 bg-purple-950/40 border border-purple-800/40 px-2 py-1 rounded-lg">
               Found: {filteredMessages.length} / {messages.length}
@@ -931,17 +1103,33 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                     </>
                   )}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">{msg.timestamp.split('T')[1]?.slice(0, 8)}</span>
+                {(() => {
+                  const tInfo = formatTimestamp(msg.timestamp);
+                  return (
+                    <button
+                      type="button"
+                      onClick={toggleTimestampMode}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-slate-400 hover:text-cyan-300 hover:bg-slate-800/90 border border-slate-800/80 hover:border-cyan-500/40 transition-all cursor-pointer group shadow-sm"
+                      title={`${tInfo.fullAbsolute} (${tInfo.iso || 'ISO'})\n• Relative: ${tInfo.relative}\n• Absolute: ${tInfo.absoluteDisplay}\n\n[Click to toggle all chat timestamps to ${timestampMode === 'RELATIVE' ? "Absolute (HH:mm:ss)" : "Relative ('time ago')"}]`}
+                    >
+                      <Clock className="w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                      <span className="font-medium text-slate-300 group-hover:text-cyan-200 transition-colors">{tInfo.display}</span>
+                      <span className="text-[8px] px-1 rounded bg-slate-950 text-slate-500 border border-slate-800 group-hover:text-cyan-400 group-hover:border-cyan-500/40 uppercase font-semibold">
+                        {timestampMode === 'RELATIVE' ? 'AGO' : 'ABS'}
+                      </span>
+                    </button>
+                  );
+                })()}
               </div>
 
               {/* Copy Prompt Button for User Messages */}
               {msg.sender === 'USER' && (
                 <button
-                  onClick={() => handleCopyPrompt(msg.id, msg.text)}
+                  onClick={() => handleCopyMessage(msg.id, msg.text)}
                   title="Copy Prompt to Clipboard"
                   className="px-2 py-1 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800 border border-slate-800 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-medium"
                 >
-                  {copiedPromptMsgId === msg.id ? (
+                  {copiedMsgId === msg.id ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-emerald-400" />
                       <span className="text-emerald-400 font-bold">Copied!</span>
@@ -955,9 +1143,28 @@ export const AnamnesisChatInterface: React.FC<AnamnesisChatInterfaceProps> = ({
                 </button>
               )}
 
-              {/* Voice Readout Action Button for Gabby Messages */}
+              {/* Action Buttons for Laura / Assistant Messages */}
               {msg.sender !== 'USER' && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
+                  {/* Copy Response Button for Laura's Output */}
+                  <button
+                    onClick={() => handleCopyMessage(msg.id, msg.text)}
+                    title="Copy Laura's Output to Clipboard"
+                    className="px-2 py-1 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-slate-800 border border-slate-800 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-medium"
+                  >
+                    {copiedMsgId === msg.id ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400 font-bold">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-purple-400" />
+                        <span>Copy Output</span>
+                      </>
+                    )}
+                  </button>
+
                   {speakingMsgId === msg.id && isSpeaking && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse">
                       <Volume2 className="w-3 h-3 text-emerald-400 animate-bounce" />

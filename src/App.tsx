@@ -11,6 +11,7 @@ import { GabbySubstratePanel } from './components/GabbySubstratePanel';
 import { GabbyVNextPanel } from './components/GabbyVNextPanel';
 import { MasterKeyModal } from './components/MasterKeyModal';
 import { ProfileAndMemoryModal, UserProfileClient } from './components/ProfileAndMemoryModal';
+import { PersonalityAndRetrievalModal } from './components/PersonalityAndRetrievalModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { InterAIDialogueModal } from './components/InterAIDialogueModal';
 import { continuousRuntime } from './engine/vnext/ContinuousCognitiveRuntime';
@@ -91,6 +92,7 @@ export default function App() {
   const [isProposalsModalOpen, setIsProposalsModalOpen] = useState<boolean>(false);
   const [isLayersModalOpen, setIsLayersModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isPersonalityModalOpen, setIsPersonalityModalOpen] = useState<boolean>(false);
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState<boolean>(false);
   const [isDriveModalOpen, setIsDriveModalOpen] = useState<boolean>(false);
   const [isInterAIModalOpen, setIsInterAIModalOpen] = useState<boolean>(false);
@@ -609,6 +611,7 @@ export default function App() {
         onOpenMasterKeyModal={() => setIsMasterKeyModalOpen(true)}
         activeProfile={activeProfile}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
         onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
         onOpenDriveModal={() => setIsDriveModalOpen(true)}
         onOpenInterAIModal={() => setIsInterAIModalOpen(true)}
@@ -640,6 +643,7 @@ export default function App() {
             posture={posture}
             activeProfile={activeProfile}
             onOpenProfileModal={() => setIsProfileModalOpen(true)}
+            onOpenPersonalityModal={() => setIsPersonalityModalOpen(true)}
             voiceSettings={voiceSettings}
             onUpdateVoiceSettings={handleUpdateVoiceSettings}
           />
@@ -737,6 +741,15 @@ export default function App() {
         isOpen={isDriveModalOpen}
         onClose={() => setIsDriveModalOpen(false)}
         onFeedToLauraMemory={handleFeedToLauraMemory}
+      />
+
+      <PersonalityAndRetrievalModal
+        isOpen={isPersonalityModalOpen}
+        onClose={() => setIsPersonalityModalOpen(false)}
+        activeProfileName={activeProfile?.name || 'Will'}
+        onSendToChat={(query) => {
+          handleSendMessage(query, []);
+        }}
       />
 
       <InterAIDialogueModal

@@ -1,6 +1,9 @@
+import { personalityCoreEngine, ConversationDetailAnchor } from '../engine/personalityCore';
+
 /**
  * Layer 2: Epistemic Vaults - Short-term Context Window
- * Manages recent turn history in memory (last N turns verbatim)
+ * Manages recent turn history in memory (last N turns verbatim) and tracks
+ * key conversation anchors for high-fidelity contextual awareness.
  */
 
 export interface ChatMessageTurn {
@@ -15,7 +18,7 @@ export class ContextWindow {
   private history: ChatMessageTurn[] = [];
   private maxTurns: number;
 
-  constructor(maxTurns = 20) {
+  constructor(maxTurns = 25) {
     this.maxTurns = maxTurns;
   }
 
@@ -31,6 +34,12 @@ export class ContextWindow {
     if (this.history.length > this.maxTurns) {
       this.history.shift();
     }
+
+    // Extract contextual anchors if user message
+    if (sender === 'USER') {
+      personalityCoreEngine.extractAndRecordContextAnchors(text, this.history.length);
+    }
+
     return turn;
   }
 
@@ -42,9 +51,15 @@ export class ContextWindow {
     this.history = turns.slice(-this.maxTurns);
   }
 
+  public getTrackedAnchors(): ConversationDetailAnchor[] {
+    return personalityCoreEngine.getActiveAnchors();
+  }
+
   public clear(): void {
     this.history = [];
+    personalityCoreEngine.clearSessionAnchors();
   }
 }
 
 export const activeContextWindow = new ContextWindow();
+

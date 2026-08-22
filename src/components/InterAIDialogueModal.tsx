@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Send, ShieldCheck, ShieldAlert, Cpu, ArrowRightLeft, Lock, CheckCircle2, AlertTriangle, Sparkles, X } from 'lucide-react';
+import { Bot, Send, ShieldCheck, ShieldAlert, Cpu, ArrowRightLeft, Lock, CheckCircle2, AlertTriangle, Sparkles, X, Copy, Check } from 'lucide-react';
 import { ObservationEnvelope } from '../types';
 
 interface InterAIDialogueModalProps {
@@ -13,6 +13,15 @@ export const InterAIDialogueModal: React.FC<InterAIDialogueModalProps> = ({ isOp
   const [outboundPrompt, setOutboundPrompt] = useState<string>('Consultation query: Evaluate structural logical consistency of active memory graph.');
   const [inboundMock, setInboundMock] = useState<string>('Analysis complete: Active memory graph demonstrates 98.4% logical alignment with zero contradictions.');
   const [loading, setLoading] = useState<boolean>(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (key: string, text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
+  };
   const [result, setResult] = useState<{
     success: boolean;
     outboundEnvelope?: ObservationEnvelope;
@@ -162,7 +171,17 @@ export const InterAIDialogueModal: React.FC<InterAIDialogueModalProps> = ({ isOp
               {/* Outbound Token Envelope */}
               {result.outboundEnvelope && (
                 <div className="space-y-1">
-                  <span className="text-cyan-400 font-semibold block text-[11px]">Outbound Identity Token (IBT):</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-cyan-400 font-semibold block text-[11px]">Outbound Identity Token (IBT):</span>
+                    <button
+                      onClick={() => handleCopy('outbound', JSON.stringify(result.outboundEnvelope, null, 2))}
+                      className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Copy Outbound Token JSON"
+                    >
+                      {copiedKey === 'outbound' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'outbound' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
                   <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] text-slate-300 border border-slate-800/80 overflow-x-auto">
                     <p className="text-slate-400">Target Model: <strong className="text-cyan-300">{result.outboundEnvelope.interAiMeta?.targetExternalModel}</strong></p>
                     <p className="text-slate-400">Identity Token Token ID: <strong className="text-purple-300">{result.outboundEnvelope.interAiMeta?.identityToken.revocableToken}</strong></p>
@@ -175,7 +194,17 @@ export const InterAIDialogueModal: React.FC<InterAIDialogueModalProps> = ({ isOp
               {/* Inbound Verification */}
               {result.inboundEnvelope && (
                 <div className="space-y-1 pt-2 border-t border-slate-800">
-                  <span className="text-emerald-400 font-semibold block text-[11px]">Inbound Observation Envelope:</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-emerald-400 font-semibold block text-[11px]">Inbound Observation Envelope:</span>
+                    <button
+                      onClick={() => handleCopy('inbound', result.inboundEnvelope?.content || '')}
+                      className="text-[10px] text-slate-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Copy Inbound Response"
+                    >
+                      {copiedKey === 'inbound' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'inbound' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
                   <p className="text-slate-300 bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-[11px]">
                     "{result.inboundEnvelope.content}"
                   </p>
